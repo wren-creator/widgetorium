@@ -3,6 +3,16 @@
 All notable changes to Widgetorium are recorded here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Storefront reskinned as "The Factory Tour": a whimsical widget emporium
+  crossed with a mail-order novelty catalogue (Willy Wonka meets ACME Corp).
+  Marquee header with a candy-stripe awning, a rotating "golden ticket"
+  featured product, ticket-stub cards with a `GUARANTEED*` stamp, and a
+  hazard-stripe footer. Pure CSS and markup, no web fonts (the lab has no
+  egress), no functional change to the lab.
+
 ## [0.1.0] - 2026-09-02
 
 First public release.

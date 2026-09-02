@@ -1,49 +1,287 @@
-/* Widgetorium: a deliberately dull beige retail theme. */
+/* Widgetorium: "The Factory Tour" theme.
+   A whimsical widget emporium crossed with a mail-order novelty catalogue.
+   No web fonts: the lab has no internet egress, so everything is a system stack.
+   Pizazz lives in the chrome; the content areas stay plain and readable, this
+   is still a target you have to be able to work in. */
+
 :root {
-  --beige: #f4efe6;
-  --beige-dark: #e7dfce;
-  --ink: #33302b;
-  --accent: #7a6a4f;
-  --line: #cabfa6;
+  --cream:   #f6efdd;
+  --paper:   #fffdf6;
+  --plum:    #37203f;
+  --plum-2:  #4d2f5c;
+  --gold:    #c39a3f;
+  --gold-lt: #e3c477;
+  --ink:     #2f2617;
+  --ink-soft:#6b5f45;
+  --teal:    #1f6f6b;
+  --red:     #b3271c;
+  --line:    #d9c9a0;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --stencil: "Courier New", Courier, monospace;
+  --body: "Segoe UI", Tahoma, Verdana, sans-serif;
 }
+
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font: 15px/1.5 "Segoe UI", Tahoma, Verdana, sans-serif;
+  font: 15px/1.55 var(--body);
   color: var(--ink);
-  background: var(--beige);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(195, 154, 63, 0.14), transparent 60%),
+    var(--cream);
 }
+
+a { color: var(--teal); text-decoration: none; }
+a:hover { color: var(--red); text-decoration: underline; }
+
+/* ---------- header: the marquee ---------- */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
-  background: var(--beige-dark);
-  border-bottom: 2px solid var(--line);
+  gap: 18px;
+  padding: 14px 24px;
+  background:
+    linear-gradient(180deg, var(--plum-2), var(--plum));
+  border-top: 4px solid var(--gold);
+  border-bottom: 3px double var(--gold);
   flex-wrap: wrap;
 }
-.brand { font-weight: 700; letter-spacing: 2px; text-decoration: none; color: var(--accent); }
-.topbar .search { display: flex; gap: 6px; flex: 1; min-width: 220px; }
-.topbar .search input { flex: 1; padding: 6px 8px; border: 1px solid var(--line); }
-.topbar nav { display: flex; gap: 14px; }
-.topbar nav a { color: var(--ink); text-decoration: none; }
-.topbar nav a:hover { text-decoration: underline; }
-main { max-width: 960px; margin: 24px auto; padding: 0 20px; }
-h1 { font-size: 1.5rem; }
-.lede { color: var(--accent); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-.card { background: #fff; border: 1px solid var(--line); padding: 12px; }
-.card a { font-weight: 600; color: var(--ink); }
-.card .desc { font-size: 0.85rem; color: #6b6459; }
-.card .price { font-size: 0.85rem; }
-table.list, table.kv { width: 100%; border-collapse: collapse; background: #fff; }
-table.list th, table.list td, table.kv th, table.kv td {
-  border: 1px solid var(--line); padding: 6px 10px; text-align: left;
+.brand {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--gold-lt);
+  text-shadow: 0 1px 0 #1c1022, 0 0 14px rgba(227, 196, 119, 0.25);
+  white-space: nowrap;
 }
-.auth label, .review-form label, .admin-form label { display: block; margin: 8px 0; }
-.auth input, .review-form textarea, .review-form input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); }
-button { padding: 7px 14px; background: var(--accent); color: #fff; border: 0; cursor: pointer; }
-.err { color: #a00; }
-.ok { color: #063; }
-.foot { max-width: 960px; margin: 40px auto; padding: 16px 20px; border-top: 1px solid var(--line); font-size: 0.8rem; color: #8a8271; }
-code { background: var(--beige-dark); padding: 1px 4px; }
+.brand:hover { color: #fff; text-decoration: none; }
+
+.topbar .search { display: flex; gap: 0; flex: 1; min-width: 240px; }
+.topbar .search input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid var(--gold);
+  border-right: none;
+  background: var(--cream);
+  font: 14px var(--body);
+  color: var(--ink);
+}
+.topbar .search input::placeholder { color: var(--ink-soft); font-style: italic; }
+.topbar .search button {
+  border: 2px solid var(--gold);
+  background: var(--gold);
+  color: var(--plum);
+  font-family: var(--serif);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0 16px;
+  cursor: pointer;
+}
+.topbar .search button:hover { background: var(--gold-lt); }
+
+.topbar nav { display: flex; gap: 16px; align-items: center; }
+.topbar nav a {
+  color: var(--cream);
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+.topbar nav a:hover { color: var(--gold-lt); text-decoration: none; }
+
+/* candy-stripe awning under the marquee */
+.awning {
+  height: 14px;
+  background: repeating-linear-gradient(90deg,
+    var(--plum) 0 24px, var(--cream) 24px 48px);
+  border-bottom: 2px solid var(--gold);
+}
+
+/* ---------- main column ---------- */
+main { max-width: 1000px; margin: 30px auto; padding: 0 24px; }
+
+h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--plum);
+  margin: 0 0 4px;
+}
+h1::after {
+  content: "";
+  display: block;
+  width: 90px;
+  height: 3px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+h2 {
+  font-family: var(--serif);
+  color: var(--plum-2);
+  letter-spacing: 0.03em;
+  margin-top: 1.8em;
+}
+.lede { font-family: var(--serif); font-style: italic; font-size: 1.05rem; color: var(--ink-soft); }
+
+/* ---------- golden ticket band ---------- */
+.ticket {
+  margin: 22px 0 30px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fbf3da;
+  border: 3px dashed var(--gold);
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+.ticket .star { flex: none; color: var(--gold); }
+.ticket .thumb {
+  flex: none;
+  width: 120px; height: 92px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-size: 2.4rem; font-weight: 700;
+  color: var(--plum);
+  background: var(--paper);
+  border: 2px solid var(--line);
+}
+.ticket .body { flex: 1; min-width: 220px; }
+.ticket .kicker {
+  font-family: var(--stencil);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.ticket .name { font-family: var(--serif); font-size: 1.3rem; color: var(--plum); margin: 2px 0 4px; }
+.ticket .name a { color: inherit; }
+.ticket .meta { font-size: 0.9rem; color: var(--ink-soft); }
+.ticket .go {
+  margin-top: 10px;
+  display: inline-block;
+  font-family: var(--serif); font-weight: 700; letter-spacing: 0.05em;
+  padding: 8px 18px;
+  background: var(--plum);
+  color: var(--gold-lt);
+  border: 2px solid var(--gold);
+  cursor: pointer;
+}
+.ticket .go:hover { background: var(--plum-2); color: #fff; text-decoration: none; }
+
+/* ---------- catalogue grid: ticket-stub cards ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px;
+}
+.card {
+  position: relative;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  padding: 30px 16px 16px;
+  clip-path: polygon(0 0, 100% 0, 100% 94%, 96% 100%, 4% 100%, 0 94%);
+}
+.card > a {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.card > a:hover { color: var(--teal); text-decoration: none; }
+.card .desc { font-size: 0.85rem; color: var(--ink-soft); margin: 6px 0; }
+.card .price { font-size: 0.85rem; color: var(--plum-2); font-weight: 600; }
+.card .guarantee {
+  position: absolute;
+  top: 10px; right: 8px;
+  font-family: var(--stencil);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  border: 1.5px solid var(--red);
+  padding: 1px 5px;
+  transform: rotate(-8deg);
+  background: rgba(255, 253, 246, 0.9);
+}
+
+/* ---------- product page ---------- */
+.product h1 { font-size: 1.8rem; }
+.product .price { font-family: var(--serif); font-size: 1.4rem; color: var(--plum); }
+.product .stock { color: var(--ink-soft); font-size: 0.9rem; }
+.reviews .review {
+  border-left: 3px solid var(--gold);
+  background: #fbf3da;
+  padding: 8px 12px;
+  margin: 10px 0;
+}
+.reviews .review .meta { font-size: 0.8rem; color: var(--ink-soft); }
+.review-form, .auth, .admin-form { margin-top: 14px; }
+.review-form label, .auth label, .admin-form label { display: block; margin: 8px 0; font-family: var(--serif); }
+.review-form input, .review-form textarea,
+.auth input, .admin-form input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  font: 14px var(--body);
+}
+
+/* ---------- tables (search results, orders, admin) ---------- */
+table.list, table.kv {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+  margin: 1em 0;
+}
+table.list th, table.list td,
+table.kv th, table.kv td {
+  border: 1px solid var(--line);
+  padding: 7px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+table.list th, table.kv th {
+  background: var(--plum);
+  color: var(--gold-lt);
+  font-family: var(--serif);
+  letter-spacing: 0.04em;
+}
+table.list tr:nth-child(even) td { background: #fbf3da; }
+
+/* ---------- buttons, messages ---------- */
+button, .btn {
+  padding: 8px 16px;
+  background: var(--gold);
+  color: var(--plum);
+  border: 2px solid var(--plum);
+  font-family: var(--serif);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+button:hover { background: var(--gold-lt); }
+.err { color: var(--red); font-weight: 600; }
+.ok  { color: var(--teal); font-weight: 600; }
+code { background: #fbf3da; border: 1px solid var(--line); padding: 1px 4px; font-family: var(--stencil); }
+pre  { background: #241a2b; color: #e9d9a8; padding: 12px; overflow-x: auto; border-radius: 4px; }
+
+/* ---------- footer: the hazard board ---------- */
+.hazard {
+  height: 12px;
+  background: repeating-linear-gradient(45deg,
+    var(--gold-lt) 0 14px, var(--ink) 14px 28px);
+}
+.foot {
+  max-width: 1000px;
+  margin: 40px auto 0;
+  padding: 16px 24px 40px;
+  font-family: var(--stencil);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+}
+.foot .fineprint { display: block; margin-top: 4px; color: #9a8c68; }

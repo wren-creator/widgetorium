@@ -42,7 +42,7 @@ function wdg_header(string $title): void
 <header class="topbar">
   <a class="brand" href="/index.php">WIDGETORIUM</a>
   <form class="search" action="/search.php" method="get">
-    <input type="text" name="q" placeholder="Search widgets" value="<?= isset($_GET['q']) ? htmlspecialchars($_GET['q']) : '' ?>">
+    <input type="text" name="q" placeholder="Search the wonder&hellip;" value="<?= isset($_GET['q']) ? htmlspecialchars($_GET['q']) : '' ?>">
     <button type="submit">Search</button>
   </form>
   <nav>
@@ -57,6 +57,7 @@ function wdg_header(string $title): void
     <?php endif; ?>
   </nav>
 </header>
+<div class="awning" aria-hidden="true"></div>
 <main>
 <?php
 }
@@ -65,8 +66,10 @@ function wdg_footer(): void
 {
     ?>
 </main>
+<div class="hazard" aria-hidden="true"></div>
 <footer class="foot">
   Widgetorium Retail Ltd &middot; a training lab &middot; do not deploy to a routable network
+  <span class="fineprint">* GUARANTEED subject to gravity, coyotes, and your input validation.</span>
 </footer>
 </body>
 </html>
