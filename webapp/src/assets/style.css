@@ -1,0 +1,49 @@
+/* Widgetorium: a deliberately dull beige retail theme. */
+:root {
+  --beige: #f4efe6;
+  --beige-dark: #e7dfce;
+  --ink: #33302b;
+  --accent: #7a6a4f;
+  --line: #cabfa6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 15px/1.5 "Segoe UI", Tahoma, Verdana, sans-serif;
+  color: var(--ink);
+  background: var(--beige);
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--beige-dark);
+  border-bottom: 2px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand { font-weight: 700; letter-spacing: 2px; text-decoration: none; color: var(--accent); }
+.topbar .search { display: flex; gap: 6px; flex: 1; min-width: 220px; }
+.topbar .search input { flex: 1; padding: 6px 8px; border: 1px solid var(--line); }
+.topbar nav { display: flex; gap: 14px; }
+.topbar nav a { color: var(--ink); text-decoration: none; }
+.topbar nav a:hover { text-decoration: underline; }
+main { max-width: 960px; margin: 24px auto; padding: 0 20px; }
+h1 { font-size: 1.5rem; }
+.lede { color: var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.card { background: #fff; border: 1px solid var(--line); padding: 12px; }
+.card a { font-weight: 600; color: var(--ink); }
+.card .desc { font-size: 0.85rem; color: #6b6459; }
+.card .price { font-size: 0.85rem; }
+table.list, table.kv { width: 100%; border-collapse: collapse; background: #fff; }
+table.list th, table.list td, table.kv th, table.kv td {
+  border: 1px solid var(--line); padding: 6px 10px; text-align: left;
+}
+.auth label, .review-form label, .admin-form label { display: block; margin: 8px 0; }
+.auth input, .review-form textarea, .review-form input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); }
+button { padding: 7px 14px; background: var(--accent); color: #fff; border: 0; cursor: pointer; }
+.err { color: #a00; }
+.ok { color: #063; }
+.foot { max-width: 960px; margin: 40px auto; padding: 16px 20px; border-top: 1px solid var(--line); font-size: 0.8rem; color: #8a8271; }
+code { background: var(--beige-dark); padding: 1px 4px; }

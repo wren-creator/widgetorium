@@ -1,0 +1,17 @@
+# vuln 7: process-wide OpenSSL config that weakens TLS.
+# The entrypoint exports OPENSSL_CONF pointing here when WEAK_TLS=1.
+
+openssl_conf = openssl_init
+
+[openssl_init]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+# Allow TLS 1.0 and up.
+MinProtocol = TLSv1
+MaxProtocol = TLSv1.3
+# SECLEVEL=0 re-enables short keys, RC4, 3DES, EXPORT, MD5-based suites.
+CipherString = DEFAULT@SECLEVEL=0

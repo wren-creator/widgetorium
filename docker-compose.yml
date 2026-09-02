@@ -1,0 +1,97 @@
+name: widgetorium
+
+# Widgetorium training lab.
+# Three services on an internal bridge network. Every published port binds to
+# 127.0.0.1 only: the lab is reachable from this machine and nowhere else.
+# Toggle values are read from .env (setup.sh creates it from .env.example);
+# the :-defaults here mean the lab still runs with no .env present.
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: widgetorium-db
+    restart: unless-stopped
+    command: ["--local-infile=1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
+      MYSQL_DATABASE: "${DB_NAME:-widgetorium}"
+      MYSQL_USER: "${DB_USER:-widgetorium}"
+      MYSQL_PASSWORD: "${DB_PASS:-widgetorium}"
+    volumes:
+      - widgetorium-db-data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./db/my.cnf:/etc/mysql/conf.d/widgetorium.cnf:ro
+      - ./db/loot/secret.txt:/var/lib/mysql-files/secret.txt:ro
+    networks: [widgetorium-net]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # no ports: the database is internal-only, reachable only from webapp
+
+  webapp:
+    build:
+      context: ./webapp
+    container_name: widgetorium-webapp
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: "db"
+      DB_NAME: "${DB_NAME:-widgetorium}"
+      DB_USER: "${DB_USER:-widgetorium}"
+      DB_PASS: "${DB_PASS:-widgetorium}"
+      EXPIRED_CERT: "${EXPIRED_CERT:-0}"
+      WEAK_TLS: "${WEAK_TLS:-1}"
+      SEND_HSTS: "${SEND_HSTS:-0}"
+      PLANT_GIT: "${PLANT_GIT:-1}"
+      VERBOSE_ERRORS: "${VERBOSE_ERRORS:-1}"
+      SECOND_ORDER_SINK: "${SECOND_ORDER_SINK:-1}"
+      WEAK_SESSIONS: "${WEAK_SESSIONS:-1}"
+    volumes:
+      # vuln 19: same named volume the ftp service mounts as its anon upload dir
+      - widgetorium-dropzone:/var/www/html/uploads/ftp
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    networks: [widgetorium-net]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/health.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ftp:
+    build:
+      context: ./ftp
+    container_name: widgetorium-ftp
+    restart: unless-stopped
+    environment:
+      FTP_USER: "${FTP_USER:-ftpuser}"
+      FTP_PASS: "${FTP_PASS:-ftpuser}"
+    volumes:
+      # vuln 19: shared with webapp's /var/www/html/uploads/ftp
+      - widgetorium-dropzone:/srv/ftp/upload
+    ports:
+      - "127.0.0.1:21:21"
+      - "127.0.0.1:21100-21110:21100-21110"
+    networks: [widgetorium-net]
+    healthcheck:
+      # Check the process, not the socket. vsftpd 3.0.x segfaults on the
+      # zero-byte half-open connect that `nc -z` / a raw TCP probe makes.
+      test: ["CMD-SHELL", "pgrep vsftpd >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  widgetorium-net:
+    driver: bridge
+    name: widgetorium-net
+
+volumes:
+  widgetorium-db-data:
+  widgetorium-dropzone:

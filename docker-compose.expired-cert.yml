@@ -1,0 +1,11 @@
+# Certificate scenario override (vuln 6).
+# Swaps the default self-signed CN-mismatch cert for a long-expired one.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.expired-cert.yml up -d
+#
+# or just: EXPIRED_CERT=1 ./start.sh
+
+services:
+  webapp:
+    environment:
+      EXPIRED_CERT: "1"

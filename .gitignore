@@ -1,0 +1,26 @@
+# --- local env ---
+# real .env is generated from .env.example by setup.sh, never committed
+.env
+
+# --- generated lab certificates (rebuilt by the image build / setup.sh) ---
+webapp/certs/*.crt
+webapp/certs/*.key
+webapp/certs/*.pem
+
+# --- planted git history ---
+# plant-git.sh runs inside the image build. This guard is only for the case
+# where someone runs it locally against the working tree by mistake.
+webapp/src/admin/.git/
+
+# --- database data dir ---
+# named docker volume holds MySQL data; this covers anyone who switches to a
+# host bind mount. Never commit database files.
+db/data/
+**/mysql-data/
+
+# --- os / editor cruft ---
+.DS_Store
+*.swp
+
+# --- committed on purpose ---
+# .claude/ .vscode/ .cursor/ are tracked intentionally when present.

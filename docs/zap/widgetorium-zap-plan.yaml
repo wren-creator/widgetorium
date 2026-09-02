@@ -1,0 +1,69 @@
+# ZAP Automation Framework plan for Widgetorium.
+# Run via docs/zap/run-zap.sh, which mounts this file and the output dir into
+# the zaproxy/zap-stable image.
+#
+# This is a baseline discovery pass: traditional spider + AJAX spider, passive
+# scan, then active scan, then an HTML + JSON report. It is deliberately NOT
+# authenticated, so it mirrors what an unauthenticated attacker's scanner sees.
+# Authenticated coverage (admin report, the API endpoint) is a manual exercise,
+# see docs/scenarios.md.
+
+env:
+  contexts:
+    - name: widgetorium
+      urls:
+        - http://webapp
+      includePaths:
+        - "http://webapp.*"
+      excludePaths:
+        - "http://webapp/logout.php"
+  parameters:
+    failOnError: true
+    progressToStdout: true
+
+jobs:
+  - type: spider
+    parameters:
+      context: widgetorium
+      url: http://webapp
+      maxDuration: 5
+      maxDepth: 10
+    tests:
+      - type: stats
+        onFail: info
+        statistic: automation.spider.urls.added
+        operator: ">="
+        value: 10
+
+  - type: spiderAjax
+    parameters:
+      context: widgetorium
+      url: http://webapp
+      maxDuration: 5
+      browserId: firefox-headless
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: activeScan
+    parameters:
+      context: widgetorium
+      policy: Default Policy
+      maxRuleDurationInMins: 3
+      maxScanDurationInMins: 20
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/out
+      reportFile: report.html
+      reportTitle: Widgetorium ZAP baseline
+      reportDescription: Unauthenticated spider + active scan of the training lab.
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/out
+      reportFile: report.json
+      reportTitle: Widgetorium ZAP baseline
