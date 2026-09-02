@@ -5,11 +5,15 @@ confirms or exploits it. Work out the remediation yourself, then check it
 against the instructor edition. Work through them in order or jump to
 whatever category you are teaching that day.
 
-ZAP is the primary discovery tool. Spider plus active scan finds the SQL
-injection points, the XSS reflections, the missing security headers, and the
-weak TLS flags. Where ZAP will not find a bug on its own, that is called out and
-is itself a teaching point: scanners connect requests to responses, they do not
-reason about stored state, object ownership, or token structure.
+The course works every finding by hand first, a browser, `curl`, `openssl`, a
+packet capture, a short script, and only then brings in a scanner to confirm it
+and cover ground faster. The "ZAP finds it" line in each entry is written from
+that second pass: it tells you whether the automated sweep would have caught the
+bug at all. Where ZAP will not find one on its own, that is called out and is
+itself a teaching point: scanners connect requests to responses, they do not
+reason about stored state, object ownership, or token structure. The automation
+in this lab is ZAP for discovery, sqlmap, testssl.sh, gobuster, hydra, hashcat,
+and Wireshark as the per-bug spot-checks; everything else is done by hand.
 
 ## Lab facts trainees may need
 
@@ -174,7 +178,7 @@ client-supplied filename is used as-is, so `../` traversal works. Files land
 under the web root and PHP executes there.
 **ZAP finds it:** active scan may flag the endpoint, will not prove
 exploitability.
-**Confirm / exploit with:** manual / Burp.
+**Confirm / exploit with:** manual (curl).
 `curl -F 'image=@shell.php' http://127.0.0.1:8080/upload.php` then browse to
 `/uploads/shell.php`. Traversal: send the multipart `filename` as
 `../shell2.php` and confirm it lands a directory up.

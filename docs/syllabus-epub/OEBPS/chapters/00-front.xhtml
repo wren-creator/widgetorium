@@ -14,7 +14,7 @@
 <hr />
 <p>Nobody hands you a live target on day one. You do not get to point a scanner at a production storefront and see what falls out, and you should not want to. That is the gap this syllabus fills: a deliberately broken web application, a misconfigured file server, and a database full of fake customers, all running on your own machine with nothing routable anywhere near it.</p>
 <p>This is a six session course built entirely on the Widgetorium lab. Widgetorium is a dull beige widget shop, brackets and bolts and cable tidies, with nineteen planted weaknesses across SQL injection, transport security, the general web application layer, and an old FTP box wired into the same network. Every payload and every command in this book was run against the actual containers before this book went to print, not described from memory. Where the lab has an edge, the base image ships an OpenSSL without RC4 so you cannot demonstrate that particular cipher, vsftpd's anonymous path segfaults about once in a few hundred hits under a machine-gun scanner, this book says so plainly instead of pretending otherwise. A training environment that is honest about its own edges is more useful than one that quietly hopes you will not notice them.</p>
-<p>The teaching flow is ZAP first. OWASP ZAP does the discovery sweep for each category, and a purpose-built spot-check tool confirms or exploits whatever ZAP surfaces: sqlmap for the injection points, testssl.sh for the certificate and cipher findings, gobuster for the content it missed, Wireshark for the FTP capture. Several of the nineteen, ZAP will not find on its own. That is not a bug in ZAP. A scanner connects a request to a response; it does not reason about who owns an order, whether a stored value will be trusted later, or what a session token is made of. Learning where the tool stops is half the point of the course.</p>
+<p>The teaching flow is old-school first. Every session starts with the finding worked by hand, a browser, <code>curl</code>, <code>openssl</code>, a packet capture, a short script, and only then brings in a scanner to confirm it and cover ground faster. OWASP ZAP is the discovery sweep once you already know the app; sqlmap enumerates an injection point you have already exploited by hand; testssl.sh prints the report whose lines you can already read out of a raw handshake. Doing it the manual way first is not nostalgia. Several of the nineteen findings no scanner will surface on its own, a scanner connects a request to a response, it does not reason about who owns an order, whether a stored value will be trusted later, or what a session token is made of, and the trainee who has only ever clicked "active scan" cannot tell the difference between a clean result and a blind spot.</p>
 <p>By the end you will have dumped the customer table through a search box, walked into the admin panel two different ways, planted a payload that fires only when an administrator opens a report, read a file off the database host through a price field, pulled a live API key out of an exposed <code>.git</code> directory, uploaded a web shell through an anonymous FTP login and run it from a browser, and chained the small findings into the big one. Then you will write it up.</p>
 <h2>Standing Up the Lab</h2>
 <p>Widgetorium is one <code>docker-compose</code> stack: a PHP and Apache storefront, a seeded MySQL 8 backend that is never published to the host, and an intentionally misconfigured vsftpd whose anonymous upload directory is shared straight into the web root. Every published port binds to <code>127.0.0.1</code> only.</p>
@@ -43,25 +43,33 @@
 </table>
 <p>Each session assumes a fresh browser session and a clean cookie jar. There is no shared state between sessions except what you plant yourself: an injected product row, a stored review, an uploaded shell. Run <code>./reset.sh</code> when you want the lab back to seed.</p>
 <h2>The Toolbox</h2>
-<p>You do not need all of these on day one. ZAP and <code>curl</code> get you through Session 1. The rest come in where the syllabus calls for them.</p>
+<p>This course teaches the old-school way first. Every finding is worked by hand, with a browser, <code>curl</code>, <code>openssl</code>, and a packet capture, before any scanner is pointed at it. That order is deliberate. A trainee who has dumped a table with a hand-built <code>UNION</code>, read a TLS handshake line by line, and forged a session cookie in twenty lines of Python understands what the automated tool is doing when it does the same thing in one click, and, more importantly, understands what it is <em>not</em> doing. The scanners come in during the second half of each session, to confirm and to speed up the boring parts, never as the first move.</p>
+<h3>By hand, first</h3>
 <table>
 <thead><tr><th>Tool</th><th>Role in this course</th></tr></thead>
 <tbody>
-<tr><td><strong>OWASP ZAP</strong></td><td>Primary discovery. Spider, AJAX spider, passive and active scan, and the Automation Framework plan shipped in <code>docs/zap/</code>.</td></tr>
-<tr><td><strong>sqlmap</strong></td><td>Confirms and exploits every SQL injection point, including the second-order one. Teaches what <code>--level</code> and <code>--risk</code> actually change.</td></tr>
-<tr><td><strong>testssl.sh</strong></td><td>Certificate and TLS findings in one readable report: protocol versions, cipher strength, DH size, expiry, hostname mismatch, missing HSTS. <strong>sslyze</strong> is the alternative.</td></tr>
-<tr><td><strong>gobuster</strong> / <strong>ffuf</strong></td><td>Content and directory discovery. Finds the exposed <code>/admin/.git/</code> and the path an FTP-uploaded shell landed on.</td></tr>
-<tr><td><strong>git-dumper</strong></td><td>Reconstructs the exposed <code>.git</code> repository and its history so you can recover the secret from an old commit.</td></tr>
-<tr><td><strong>Burp Suite Community</strong></td><td>Repeater and Intruder for manual request tampering: the IDOR walk, the upload filename, the API body. Worth teaching because trainees will meet it in the field.</td></tr>
-<tr><td><strong>curl</strong> / <strong>httpie</strong></td><td>Manual request crafting before anyone reaches for a tool. The auth bypass, the IDOR, and the API endpoint are all one-liners.</td></tr>
-<tr><td><strong>nmap</strong></td><td>Service and version detection, mainly against the FTP box (<code>-sV -sC -p21</code>).</td></tr>
+<tr><td><strong>The browser</strong> + dev tools</td><td>Walk the app like a user, read every parameter, inspect the session cookie, craft and confirm XSS payloads, watch a downgrade happen.</td></tr>
+<tr><td><strong>curl</strong></td><td>The workhorse. The auth bypass, the IDOR walk, the upload and its traversal, the API body, and every error-based injection are one-liners you type yourself.</td></tr>
+<tr><td><strong>openssl s_client</strong></td><td>Read the certificate and the handshake directly: subject, SAN, dates, negotiated protocol and cipher. Understand the finding before a report summarises it for you.</td></tr>
+<tr><td><strong>an FTP client</strong> (<code>ftp</code>, <code>lftp</code>)</td><td>Log in anonymously, walk out of the unjailed home directory, drop a file by hand.</td></tr>
+<tr><td><strong>tcpdump</strong> / <strong>Wireshark</strong></td><td>Capture the cleartext FTP login on loopback and read the credentials off the wire yourself.</td></tr>
+<tr><td><strong>Python</strong> + <code>requests</code></td><td>About twenty lines to predict and ride a session token. Not a tool problem, a scripting one, and worth doing from scratch.</td></tr>
+<tr><td><strong>git</strong> (plain)</td><td>Once the <code>.git</code> directory is pulled, <code>git log -p</code> is all you need to find the secret in history.</td></tr>
+</tbody>
+</table>
+<h3>Automation, second</h3>
+<table>
+<thead><tr><th>Tool</th><th>Role in this course</th></tr></thead>
+<tbody>
+<tr><td><strong>OWASP ZAP</strong></td><td>Discovery sweep once you know the site by hand. Spider, AJAX spider, passive and active scan, and the Automation Framework plan in <code>docs/zap/</code>. Its value is coverage and speed, not insight.</td></tr>
+<tr><td><strong>sqlmap</strong></td><td>After you have exploited an injection point manually, hand it the same parameter and watch it enumerate systematically. Teaches what <code>--level</code> and <code>--risk</code> actually change.</td></tr>
+<tr><td><strong>testssl.sh</strong> (or <strong>sslyze</strong>)</td><td>The full certificate and cipher report, once you can already read the same findings out of <code>openssl s_client</code> by hand.</td></tr>
+<tr><td><strong>gobuster</strong> / <strong>ffuf</strong></td><td>Directory and content brute-forcing. Finds the <code>/admin/.git/</code> path and the FTP-uploaded shell faster than guessing.</td></tr>
+<tr><td><strong>git-dumper</strong></td><td>Reconstructs the exposed <code>.git</code> working tree and history from HTTP so plain <code>git</code> can take over.</td></tr>
+<tr><td><strong>nmap</strong></td><td>Service and version detection against the FTP box (<code>-sV -sC -p21</code>).</td></tr>
 <tr><td><strong>Nikto</strong></td><td>Fast web-server misconfiguration sweep, a cross-check against ZAP's active scan.</td></tr>
-<tr><td><strong>Wireshark</strong> / <strong>tcpdump</strong></td><td>Capture the cleartext FTP login on the loopback interface.</td></tr>
-<tr><td><strong>hydra</strong></td><td>Credential brute-forcing against the FTP service account, the <code>ftpuser:ftpuser</code> teaching moment.</td></tr>
-<tr><td><strong>John the Ripper</strong> / <strong>hashcat</strong></td><td>Crack the unsalted MD5 password hashes pulled from the users table.</td></tr>
-<tr><td><strong>Python</strong> + <code>requests</code></td><td>About twenty lines to demonstrate predictable session-token prediction. Not a tool problem, a scripting one.</td></tr>
-<tr><td><strong>Metasploit</strong></td><td>Optional. A module-driven exploit path against the FTP box, for contrast with doing it by hand.</td></tr>
-<tr><td>Browser dev tools</td><td>Inspect the session cookie, craft and confirm XSS payloads, watch the downgrade.</td></tr>
+<tr><td><strong>hydra</strong></td><td>Credential brute-forcing against the FTP service account, once you have already guessed <code>ftpuser:ftpuser</code> by hand.</td></tr>
+<tr><td><strong>hashcat</strong></td><td>Crack the unsalted MD5 password hashes pulled from the users table.</td></tr>
 </tbody>
 </table>
 <p>The instructor edition of the scenario guide, <code>docs/scenarios.md</code> in the lab repo, maps every one of the nineteen findings to the tool that confirms it and the fix that closes it. Trainees work from <code>docs/scenarios-trainee.md</code>, the same document with the fix removed.</p>

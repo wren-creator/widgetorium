@@ -3,32 +3,54 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta charset="utf-8"/>
-<title>Session 1: Orientation and the ZAP Baseline</title>
+<title>Session 1: Orientation and Mapping by Hand</title>
 <link rel="stylesheet" type="text/css" href="../styles.css"/>
 </head>
 <body>
-<h1>Session 1: Orientation and the ZAP Baseline</h1>
-<p>Goal for this session: get the lab running, click through the store like an ordinary customer, then point ZAP at it and read the first report. Do not try to exploit anything yet. Every later session assumes you have a spidered site tree and a baseline scan to compare against.</p>
-<h2>1.1 Walk the Store First</h2>
-<p>Open <code>http://127.0.0.1:8080</code> and behave like a shopper. Browse the catalogue. Open a product. Search for "bolt". Register an account, log in, place nothing in a cart because the cart is a stub, and look at your order history. Log in again as <code>admin</code> / <code>Widgetorium2024!</code> and notice the extra "Admin" link in the header.</p>
-<p>While you do this, keep a notebook. Write down every parameter you see: <code>search.php?q=</code>, <code>product.php?id=</code>, <code>orders.php?id=</code>, the login form fields, the review form, the upload form, the <code>/admin/</code> paths. A scanner will find most of these. You want to have seen them yourself first, because the ones you notice by hand are usually the ones the scanner cannot reason about.</p>
-<h2>1.2 Proxy the Browser Through ZAP</h2>
-<p>Start ZAP, set your browser to use it as an HTTP proxy (or launch the browser ZAP bundles), and browse the store again with the proxy recording. This seeds ZAP's site tree with real traffic, including the authenticated pages, before the spider runs. Manual browsing through the proxy is not optional polish; the spider will not find the admin report or the API endpoint on its own.</p>
-<h2>1.3 Spider and Baseline Scan</h2>
-<p>Run the traditional spider from the site root, then the AJAX spider, then let the passive scanner drain. The lab ships an Automation Framework plan that does exactly this:</p>
-<pre>docs/zap/run-zap.sh          # spider + AJAX spider + passive + active scan
-                             # report lands at docs/zap/out/report.html</pre>
-<p>The wrapper runs the official ZAP image on the lab's internal network and reaches the app as <code>http://webapp</code>. Read <code>docs/zap/widgetorium-zap-plan.yaml</code> before you run it so you know what it is doing.</p>
-<h2>1.4 Read the First Report</h2>
-<p>The passive scan alone should already be flagging the cheap findings: the missing <code>Strict-Transport-Security</code> header, the self-signed certificate, information disclosure in error responses, the <code>X-Powered-By</code> banner. The active scan, once it finishes, should raise SQL injection on the search parameter and reflected cross-site scripting.</p>
-<p>Now the more useful exercise: make a list of what ZAP <em>did not</em> flag. Expect it to stay quiet on the second-order injection, the IDOR on order history, the exposed <code>.git</code> directory, the predictable session token, and everything on the FTP box. Hold onto that list. The next four sessions are largely about the gap between it and the full count of nineteen.</p>
-<h2>1.5 Confirm the Lab Is Contained</h2>
+<h1>Session 1: Orientation and Mapping by Hand</h1>
+<p>Goal for this session: get the lab running, then map the whole application yourself, with a browser and <code>curl</code>, before any scanner touches it. Only at the end do you run ZAP once, as a baseline, and the exercise there is to see how little it adds to a map you already built by hand. Do not try to exploit anything yet.</p>
+<h2>1.1 Confirm the Lab Is Contained</h2>
 <p>Before you point anything sharper than a browser at this, prove to yourself it cannot reach past your machine.</p>
 <pre>./status.sh                                   # runs the bind audit, exits non-zero on any 0.0.0.0
 docker compose ps --format '{{.Name}}\t{{.Ports}}'   # every mapping must read 127.0.0.1:
 nmap -Pn -p 8080,8443,21 &lt;this-host-LAN-IP&gt;    # from another box: all filtered or closed</pre>
-<p><code>start.sh</code> already refuses to launch a configuration that would bind beyond loopback, and <code>status.sh</code> re-checks the running containers. Run the external <code>nmap</code> once anyway. Getting in the habit of proving your lab is contained, every time, is a professional reflex worth building early, and it is the same check you will run on a client engagement to prove your test traffic stayed in scope.</p>
+<p><code>start.sh</code> already refuses to launch a configuration that would bind beyond loopback, and <code>status.sh</code> re-checks the running containers. Run the external <code>nmap</code> once anyway. Proving your lab is contained, every time, is the same reflex you use on a client engagement to prove your test traffic stayed in scope. Build it now.</p>
+<h2>1.2 Walk the Store Like a Customer</h2>
+<p>Open <code>http://127.0.0.1:8080</code> and behave like a shopper. Browse the catalogue. Open a product. Search for "bolt". Register an account, log in, look at your order history. Log in again as <code>admin</code> / <code>Widgetorium2024!</code> and notice the extra "Admin" link in the header. Then open the HTTPS side, <code>https://127.0.0.1:8443</code>, and read the certificate warning your browser gives you instead of clicking past it.</p>
+<h2>1.3 Map Every Endpoint by Hand</h2>
+<p>Now go through the site again with intent and write down, on paper or in a flat file, every request the app makes. View source. Read the forms. Note the method, the path, and every parameter:</p>
+<pre>GET  /search.php?q=            reflected on the page
+GET  /product.php?id=
+GET  /orders.php?id=           and the /order.php alias
+POST /login.php               username, password
+POST /register.php
+POST /review.php              product_id, author, body
+POST /upload.php              multipart: image, optional filename
+POST /api/update_item.php     JSON: id, price, qty
+     /admin/                  index, products, inventory_report, config
+     /admin/.git/             does this respond?</pre>
+<p>Confirm each one with <code>curl -i</code> so you have seen the raw response, the headers, the status, the body, not just the rendered page:</p>
+<pre>curl -sI http://127.0.0.1:8080/                       # Server, X-Powered-By, no HSTS on the 8443 side
+curl -s  "http://127.0.0.1:8080/search.php?q=bolt"    # how does the term come back?
+curl -s  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/admin/.git/config</pre>
+<p>By the end of this step you have a complete map of the attack surface that you built, not one a tool handed you. Every later session works from this map.</p>
+<h2>1.4 Read the Transport by Hand</h2>
+<p>Before testssl.sh does it for you in Session 3, look at the certificate and the handshake yourself:</p>
+<pre>openssl s_client -connect 127.0.0.1:8443 -servername widgetorium.local &lt;/dev/null 2&gt;&amp;1 \
+  | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+curl -ksI https://127.0.0.1:8443/ | grep -i strict-transport-security   # nothing comes back</pre>
+<p>You should be able to say, out loud, three things that are wrong with this before you have run a single scanner: the name does not match, it is self-signed, and there is no HSTS.</p>
+<h2>1.5 Now Run ZAP, Once, as a Baseline</h2>
+<p>Proxy your browser through ZAP, browse the store again so the site tree is seeded with authenticated traffic, then run the spider, the AJAX spider, and let the passive scanner drain. The lab ships an Automation Framework plan that does the sweep:</p>
+<pre>docs/zap/run-zap.sh          # spider + AJAX spider + passive + active scan
+                             # report lands at docs/zap/out/report.html</pre>
+<p>Read <code>docs/zap/widgetorium-zap-plan.yaml</code> first so you know what it is doing. When the report is ready, do not read it top to bottom. Instead, put it next to your hand-built map and answer two questions:</p>
+<ul>
+<li>What did ZAP find that is <em>not</em> on my map? (Usually very little. The missing HSTS header, the self-signed cert, the reflected XSS, the SQL injection on search, the verbose error, all things you can also see by hand.)</li>
+<li>What is on my map that ZAP said <em>nothing</em> about? (The second-order injection, the IDOR on order history, the exposed <code>.git</code> directory, the predictable session token, and the entire FTP box.)</li>
+</ul>
+<p>That second list is the rest of the course.</p>
 <h2>1.6 What You Should Notice</h2>
-<p>An unauthenticated scanner sees a specific slice of a web application: the parameters that reflect, the headers that are missing, the errors that leak. It does not see intent. It cannot tell that order 1002 belongs to someone else, that a product name will be concatenated into a query an hour from now, or that the session cookie is a timestamp with a user ID stapled to the end. Those are the findings you carry a brain for. The rest of this course alternates between the two: let the tool sweep, then go where the tool cannot follow.</p>
+<p>You mapped this application in half an hour with a browser and <code>curl</code>, and the scanner, run afterward, mostly confirmed what you already had. The findings that matter most, the ones about who owns an order, whether a stored value gets trusted later, what a session token is made of, were never going to come from a tool that only connects requests to responses. Old-school first is not a style choice. It is the only way to know where the automated tool stopped seeing.</p>
 </body>
 </html>
