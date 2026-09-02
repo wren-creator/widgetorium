@@ -17,6 +17,8 @@ All notable changes to Widgetorium are recorded here. Format follows
   with a loopback-only guard in `start.sh` and a bind audit in `status.sh`.
 - `docs/zap/` ZAP automation-framework plan and wrapper.
 - `docker-compose.expired-cert.yml` override for the expired-certificate scenario.
+- *Widgetorium 101*, a six-session course syllabus, as an EPUB
+  (`docs/Widgetorium-101-Syllabus.epub`) with source under `docs/syllabus-epub/`.
 
 ## Project status
 

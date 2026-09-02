@@ -1,0 +1,17 @@
+
+body { font-family: Georgia, "Times New Roman", serif; line-height: 1.5; margin: 1.2em; color: #1a1a1a; }
+h1 { font-family: "Courier New", monospace; font-size: 1.6em; border-bottom: 3px solid #16a34a; padding-bottom: 0.2em; margin-top: 0; }
+h2 { font-family: "Courier New", monospace; font-size: 1.25em; color: #0f5e2c; margin-top: 1.6em; }
+h3 { font-family: "Courier New", monospace; font-size: 1.05em; color: #0f5e2c; }
+p { margin: 0.8em 0; }
+code, pre { font-family: "Courier New", monospace; }
+pre { background: #0d1410; color: #33ff66; padding: 0.8em; overflow-x: auto; font-size: 0.85em; border-radius: 4px; }
+code { background: #eef2ee; padding: 0.1em 0.3em; border-radius: 3px; }
+pre code { background: none; padding: 0; color: inherit; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.92em; }
+th, td { border: 1px solid #ccc; padding: 0.4em 0.6em; text-align: left; vertical-align: top; }
+th { background: #16a34a; color: #fff; font-family: "Courier New", monospace; }
+tr:nth-child(even) { background: #f4f8f4; }
+blockquote { border-left: 4px solid #16a34a; margin: 1em 0; padding: 0.3em 1em; background: #f4f8f4; }
+hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+strong { color: #0f5e2c; }

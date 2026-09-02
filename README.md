@@ -65,6 +65,8 @@ docker compose -f docker-compose.yml -f docker-compose.expired-cert.yml up -d
 | `docs/architecture.md` | container / network / volume layout and the tricky bug mechanics |
 | `docs/verification.md` | end-to-end test runbook, including the loopback bind audit |
 | `docs/zap/` | optional ZAP automation-framework plan and a wrapper script |
+| `docs/syllabus-epub/` | source for *Widgetorium 101*, a six-session course syllabus |
+| `docs/Widgetorium-101-Syllabus.epub` | the built syllabus ebook (rebuild with `docs/syllabus-epub/build-epub.sh`) |
 | `setup.sh` `start.sh` `stop.sh` `status.sh` `reset.sh` | lifecycle scripts |
 
 ## Services and ports
@@ -100,6 +102,14 @@ with TLS 1.0/1.1 enabled and weak ciphers unless `WEAK_TLS=0`.
 
 Trainees work from `docs/scenarios-trainee.md`. Instructors hold
 `docs/scenarios.md`, which adds the intended exploit path and the fix for each bug.
+
+## Course
+
+*Widgetorium 101* is a six-session syllabus built on this lab: orientation and the
+ZAP baseline, SQL injection four ways, certificates and transport security, the
+web application grab bag, the FTP box, and a chaining capstone. The ebook is at
+`docs/Widgetorium-101-Syllabus.epub`; the source is under `docs/syllabus-epub/`
+and rebuilds with `docs/syllabus-epub/build-epub.sh`.
 
 ## Security and authorised use
 
