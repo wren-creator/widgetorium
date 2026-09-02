@@ -3,7 +3,9 @@
 All notable changes to Widgetorium are recorded here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-02
+
+First public release.
 
 ### Added
 - Initial scaffold: `docker-compose.yml` with `webapp` (PHP 8 + Apache),
