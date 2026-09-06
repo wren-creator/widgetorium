@@ -5,6 +5,12 @@ All notable changes to Widgetorium are recorded here. Format follows
 
 ## [Unreleased]
 
+### Added
+- A short, opt-in support-the-lab note beneath the login form
+  (`webapp/src/login.php`), pointing at the developer fund
+  (Cash App `$britleywren`). Plain styled aside in the Factory Tour
+  theme, no popup or modal, no functional change to the lab.
+
 ### Changed
 - Storefront reskinned as "The Factory Tour": a whimsical widget emporium
   crossed with a mail-order novelty catalogue (Willy Wonka meets ACME Corp).
