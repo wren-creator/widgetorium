@@ -31,5 +31,12 @@ wdg_header('Log in');
   <button type="submit">Log in</button>
 </form>
 <p><a href="/register.php">Create an account</a></p>
+<aside class="donate">
+  <strong>Support the lab.</strong>
+  Widgetorium is built and maintained on personal time as a free training resource.
+  If it has been useful for your learning or teaching, please consider contributing to
+  the developer fund via Cash App <span class="tag">$britleywren</span>.
+  Entirely optional, and always appreciated.
+</aside>
 <?php
 wdg_footer();

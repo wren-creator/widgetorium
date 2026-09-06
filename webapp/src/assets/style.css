@@ -230,6 +230,29 @@ h2 {
   font: 14px var(--body);
 }
 
+/* ---------- login: support-the-lab note ---------- */
+.donate {
+  max-width: 460px;
+  margin: 20px 0 4px;
+  padding: 13px 16px;
+  background: #fbf3da;
+  border: 2px dashed var(--gold);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.donate strong {
+  font-family: var(--serif);
+  color: var(--plum);
+  letter-spacing: 0.03em;
+}
+.donate .tag {
+  font-family: var(--stencil);
+  color: var(--teal);
+  white-space: nowrap;
+}
+
 /* ---------- tables (search results, orders, admin) ---------- */
 table.list, table.kv {
   width: 100%;
