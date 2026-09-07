@@ -71,7 +71,23 @@ function wdg_footer(): void
   Widgetorium Retail Ltd &middot; a training lab &middot; do not deploy to a routable network
   <span class="fineprint">* GUARANTEED subject to gravity, coyotes, and your input validation.</span>
 </footer>
+<?php wdg_tipjar(); ?>
 </body>
 </html>
+<?php
+}
+
+/**
+ * Corner tip jar. Self-contained (no third-party script), dismissible,
+ * remembered in localStorage. Never gates anything.
+ */
+function wdg_tipjar(): void
+{
+    ?>
+<div id="tipjar" hidden style="position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;align-items:center;gap:10px;background:#1c1c1c;color:#eee;border:1px solid #444;border-left:4px solid #d8a24a;border-radius:10px;padding:10px 12px;font:13px/1.4 system-ui,sans-serif;max-width:340px;box-shadow:0 6px 20px #0006">
+  <span>Useful? There's a tip jar: <a href="https://cash.app/$britleywren" target="_blank" rel="noopener noreferrer" style="color:#d8a24a;font-weight:700">$britleywren</a></span>
+  <button aria-label="dismiss" onclick="this.parentElement.hidden=true;try{localStorage.setItem('tipjar_dismissed','1')}catch(e){}" style="background:none;border:0;color:#aaa;font-size:16px;cursor:pointer;line-height:1">&times;</button>
+</div>
+<script>try{if(localStorage.getItem('tipjar_dismissed')!=='1')document.getElementById('tipjar').hidden=false}catch(e){document.getElementById('tipjar').hidden=false}</script>
 <?php
 }
