@@ -17,6 +17,13 @@ code="$(curl -ksS -o /dev/null -w '%{http_code}' https://127.0.0.1:8443/health.p
 [ "$code" = "200" ] && ok "https 127.0.0.1:8443  ($code)" || bad "https 127.0.0.1:8443  ($code)"
 if (exec 3<>/dev/tcp/127.0.0.1/21) 2>/dev/null; then ok "ftp   127.0.0.1:21    (open)"; exec 3>&- || true
 else bad "ftp   127.0.0.1:21    (closed)"; fi
+if command -v dig >/dev/null 2>&1; then
+  soa="$(dig +short @127.0.0.1 -p 5300 corp.widgetorium.lab SOA 2>/dev/null || true)"
+  [ -n "$soa" ] && ok "dns   127.0.0.1:5300  (corp.widgetorium.lab SOA answered)" \
+                || bad "dns   127.0.0.1:5300  (no answer)"
+else
+  info "dns   127.0.0.1:5300  (install dig to check)"
+fi
 
 echo
 info "loopback bind audit"
@@ -34,7 +41,7 @@ done < <(dc -f docker-compose.yml ps --format '{{.Name}}\t{{.Ports}}' 2>/dev/nul
 
 if command -v lsof >/dev/null 2>&1; then
   leaked="$(lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null \
-            | grep -E '(:8080|:8443|:21|:211[0-9][0-9])\b' \
+            | grep -E '(:8080|:8443|:5300|:21|:211[0-9][0-9])\b' \
             | grep -Ev '127\.0\.0\.1:' || true)"
   if [ -n "$leaked" ]; then
     bad "host sockets listening beyond loopback:"

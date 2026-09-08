@@ -1,0 +1,49 @@
+$TTL 3600
+$ORIGIN corp.widgetorium.lab.
+@       IN      SOA     ns1.corp.widgetorium.lab. hostmaster.corp.widgetorium.lab. (
+                        2024110401      ; serial
+                        3600            ; refresh
+                        900             ; retry
+                        1209600         ; expire
+                        3600 )          ; minimum
+
+@       IN      NS      ns1.corp.widgetorium.lab.
+ns1     IN      A       127.0.0.1
+
+; --- live hosts -----------------------------------------------------------
+; Everything real in this lab is the one webapp container on loopback. The
+; names still matter: admin/dev/staging are separate name-based vhosts, the
+; rest are aliases of the storefront.
+@           IN  A       127.0.0.1
+www         IN  A       127.0.0.1
+shop        IN  A       127.0.0.1
+store       IN  CNAME   shop
+admin       IN  A       127.0.0.1
+api         IN  A       127.0.0.1
+dev         IN  A       127.0.0.1
+staging     IN  A       127.0.0.1
+legacy      IN  A       127.0.0.1
+ftp         IN  A       127.0.0.1
+
+; --- stale / out-of-scope records ---------------------------------------
+; These resolve but nothing in the lab answers on them. Finding them is the
+; point; so is working out that they are not in scope.
+vpn             IN  A       10.10.10.9
+jenkins         IN  A       10.10.20.14
+ci              IN  CNAME   jenkins
+backup          IN  A       10.10.20.31
+mail            IN  A       10.10.10.25
+intranet-old    IN  A       10.10.99.7
+
+; --- mail and policy records (recon fodder) ----------------------------
+@       IN      MX      10 mail.corp.widgetorium.lab.
+@       IN      TXT     "v=spf1 ip4:10.10.10.25 include:_spf.widgetorium.lab -all"
+_dmarc  IN      TXT     "v=DMARC1; p=none; rua=mailto:dmarc@corp.widgetorium.lab"
+@       IN      TXT     "widgetorium-lab: internal zone, keep it off any routable network"
+_kerberos IN    TXT     "CORP.WIDGETORIUM.LAB"
+
+; --- wildcard ----------------------------------------------------------
+; Any name not listed above still resolves to the webapp. DNS brute forcing
+; by resolution alone is therefore useless here: you have to fuzz the Host
+; header and diff the responses. That is the lesson.
+*       IN      A       127.0.0.1

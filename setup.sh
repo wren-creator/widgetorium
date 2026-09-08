@@ -7,9 +7,9 @@ source ./lib.sh
 
 require_docker
 
-info "checking host ports 8080, 8443, 21, 21100-21110"
+info "checking host ports 8080, 8443, 5300, 21, 21100-21110"
 BUSY=0
-for p in 8080 8443 21 21100 21105 21110; do
+for p in 8080 8443 5300 21 21100 21105 21110; do
   if lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
     warn "port $p is already in use"
     BUSY=1

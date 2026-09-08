@@ -1,0 +1,30 @@
+$TTL 3600
+$ORIGIN widgetorium.lab.
+@       IN      SOA     ns1.widgetorium.lab. hostmaster.widgetorium.lab. (
+                        2024110401      ; serial
+                        3600            ; refresh
+                        900             ; retry
+                        1209600         ; expire
+                        3600 )          ; minimum
+
+@       IN      NS      ns1.widgetorium.lab.
+ns1     IN      A       127.0.0.1
+
+; --- public face -----------------------------------------------------------
+@       IN      A       127.0.0.1
+www     IN      A       127.0.0.1
+
+@       IN      MX      10 mail.widgetorium.lab.
+mail    IN      A       10.10.10.25
+@       IN      TXT     "v=spf1 -all"
+_spf    IN      TXT     "v=spf1 ip4:10.10.10.0/24 -all"
+
+; --- breadcrumb ----------------------------------------------------------
+; Points a curious tester at the internal zone. The same server is
+; authoritative for corp.widgetorium.lab, and its transfers are wide open.
+corp        IN  NS      ns1.corp.widgetorium.lab.
+ns1.corp    IN  A       127.0.0.1        ; glue for the delegation
+dev         IN  CNAME   dev.corp.widgetorium.lab.
+
+; This zone's transfers are correctly restricted in named.conf. Compare with
+; corp.widgetorium.lab.

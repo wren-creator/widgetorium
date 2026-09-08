@@ -43,6 +43,7 @@ ok "Widgetorium is up"
 echo "  store        http://127.0.0.1:8080/"
 echo "  store (TLS)  https://127.0.0.1:8443/    (certificate warning is expected)"
 echo "  ftp          127.0.0.1:21               (anonymous, plus ftpuser:ftpuser)"
+echo "  dns          127.0.0.1:5300             (dig @127.0.0.1 -p 5300 corp.widgetorium.lab any)"
 echo
 echo "  expired-cert scenario:  ./start.sh --expired-cert"
 echo "  instructor answer key:  docs/scenarios.md"

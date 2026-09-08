@@ -63,6 +63,34 @@ services:
       timeout: 5s
       retries: 10
 
+  dns:
+    image: ubuntu/bind9:9.18-22.04_beta
+    container_name: widgetorium-dns
+    restart: unless-stopped
+    user: root
+    # invoked through sh so a lost +x bit on the host cannot stop it starting
+    entrypoint: ["sh", "/entrypoint.sh"]
+    environment:
+      # bug 20: corp.widgetorium.lab zone transfer is wide open at 1.
+      OPEN_AXFR: "${OPEN_AXFR:-1}"
+    volumes:
+      - ./dns/named.conf:/etc/bind.src/named.conf:ro
+      - ./dns/zones:/etc/bind.src/zones:ro
+      - ./dns/entrypoint.sh:/entrypoint.sh:ro
+    ports:
+      # non-standard port on purpose: 53 collides with the host resolver.
+      - "127.0.0.1:5300:53/tcp"
+      - "127.0.0.1:5300:53/udp"
+    networks: [widgetorium-net]
+    healthcheck:
+      # process liveness, not config syntax: named-checkconf passes even if the
+      # daemon has crashed. Matches the ftp service's pgrep approach.
+      test: ["CMD-SHELL", "pgrep -x named >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   ftp:
     build:
       context: ./ftp
