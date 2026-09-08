@@ -18,8 +18,13 @@ else
   cp "$BAKED/selfsigned.key" "$CERT_DIR/server.key"
 fi
 cp "$BAKED/dhparam-1024.pem" "$CERT_DIR/dhparam-1024.pem"
-chmod 0644 "$CERT_DIR/server.crt" "$CERT_DIR/dhparam-1024.pem"
-chmod 0600 "$CERT_DIR/server.key"
+
+# vuln 22: the SAN-leaking cert for the internal TLS vhosts (admin/dev/staging).
+cp "$BAKED/corp.crt" "$CERT_DIR/corp.crt"
+cp "$BAKED/corp.key" "$CERT_DIR/corp.key"
+
+chmod 0644 "$CERT_DIR/server.crt" "$CERT_DIR/corp.crt" "$CERT_DIR/dhparam-1024.pem"
+chmod 0600 "$CERT_DIR/server.key" "$CERT_DIR/corp.key"
 
 # --- weak TLS protocols and ciphers (vuln 7) --------------------------------
 # Point the whole process at an openssl.cnf that drops the security level and

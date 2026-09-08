@@ -1,0 +1,12 @@
+-- widgetorium nightly export (users table only)
+-- generated 2024-11-01 03:15 by cron on admin.corp.widgetorium.lab
+-- retention: 30 days. DO NOT copy off the corp network.
+
+INSERT INTO `users` (`id`,`username`,`email`,`password_hash`,`role`) VALUES
+ (1,'admin','admin@widgetorium.local','042af043eff3ad41868f9ccdfbd66dd8','admin'),
+ (2,'alice','alice@example.test','42f749ade7f9e195bf475f37a44cafcb','customer'),
+ (3,'bob','bob@example.test','0d107d09f5bbe40cade3de5c71e9e9b7','customer'),
+ (4,'carol','carol@example.test','0571749e2ac330a7455809c6b0e7af90','customer');
+
+-- note: hashes are unsalted MD5 (legacy). migration to bcrypt tracked in
+-- PLAT-418. staging still points at this same users table.

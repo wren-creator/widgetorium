@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://dev.corp.widgetorium.lab/</loc></url>
+  <url><loc>https://dev.corp.widgetorium.lab/phpinfo.php</loc></url>
+  <url><loc>https://dev.corp.widgetorium.lab/notes/dev-notes.txt</loc></url>
+  <url><loc>https://dev.corp.widgetorium.lab/s3/</loc></url>
+  <url><loc>https://dev.corp.widgetorium.lab/s3/widgetorium-migration-plan.pdf</loc></url>
+  <url><loc>https://dev.corp.widgetorium.lab/s3/employee-directory.csv</loc></url>
+  <url><loc>https://git.corp.widgetorium.lab/widgetorium/store</loc></url>
+  <url><loc>https://jenkins.corp.widgetorium.lab/job/store-release</loc></url>
+</urlset>

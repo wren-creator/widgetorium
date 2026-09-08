@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /s3/
+Disallow: /notes/
+Disallow: /phpinfo.php
+Disallow: /old/
+Disallow: /backup-2023/
+
+# staging and admin are separate hosts, don't crawl them:
+#   admin.corp.widgetorium.lab
+#   staging.corp.widgetorium.lab

@@ -1,0 +1,14 @@
+Contact: mailto:security@corp.widgetorium.lab
+Contact: https://corp.widgetorium.lab/report
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://dev.corp.widgetorium.lab/.well-known/security.txt
+
+# In-scope hosts for the internal assessment:
+#   shop.corp.widgetorium.lab
+#   admin.corp.widgetorium.lab
+#   dev.corp.widgetorium.lab
+#   staging.corp.widgetorium.lab
+#   api.corp.widgetorium.lab
+#   ftp.corp.widgetorium.lab
+# Out of scope: anything on 10.10.0.0/16 (legacy DC, not our estate).

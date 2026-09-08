@@ -1,0 +1,26 @@
+widgetorium dev notes -- keep this off the storefront host
+================================================================
+
+infra
+  - web/db/ftp all on the one box in the lab; prod splits them
+  - CI: jenkins.corp.widgetorium.lab (10.10.20.14) -- VPN only, ask platform
+  - git: git.corp.widgetorium.lab -- gitea, same LDAP as the console
+  - nightly export drops to the s3/ mirror on this host, ~02:00
+
+accounts / secrets
+  - console (admin.corp) uses local accounts until the SSO cutover
+  - LDAP bind user: svc-ldap-ro  (pw in the platform vault, PLAT-390)
+  - WIDGETORIUM_API_KEY was moved to an env var on prod but staging + the
+    old admin/.git checkout still have the literal. rotate it (PLAT-421).
+  - ftpuser / ftpuser still works, nobody has fixed FTP-77
+
+people
+  - f.mills  Frank Mills   platform lead     f.mills@corp.widgetorium.lab
+  - a.okafor Ada Okafor    backend           a.okafor@corp.widgetorium.lab
+  - r.singh  Ravi Singh    frontend / QA     r.singh@corp.widgetorium.lab
+  - see s3/employee-directory.csv for the full list
+
+todo
+  - turn off directory listing here before anyone notices
+  - delete phpinfo.php
+  - stop pointing staging at the prod users table

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widgetorium Internal Console</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;background:#10141a;color:#c9d3df;margin:0}
+  .wrap{max-width:360px;margin:14vh auto;padding:24px;background:#161c24;border:1px solid #263041;border-radius:12px}
+  h1{font-size:16px;letter-spacing:.5px;margin:0 0 4px}
+  p.sub{color:#7b8798;margin:0 0 18px;font-size:12px}
+  label{display:block;font-size:12px;color:#9aa7b7;margin:10px 0 4px}
+  input{width:100%;box-sizing:border-box;padding:8px 10px;background:#0d1117;border:1px solid #2b3646;border-radius:6px;color:#dfe7f0}
+  button{margin-top:16px;width:100%;padding:9px;background:#2f6feb;border:0;border-radius:6px;color:#fff;font-weight:600;cursor:pointer}
+  .foot{margin-top:16px;font-size:11px;color:#5c6979}
+</style>
+</head>
+<body>
+<!-- internal admin console. SSO migration is still pending; local accounts
+     only for now. LDAP bind creds are in the platform vault, see dev notes. -->
+<div class="wrap">
+  <h1>WIDGETORIUM &middot; INTERNAL CONSOLE</h1>
+  <p class="sub">Authorised staff only. This host is not for customer traffic.</p>
+  <form method="post" action="/login.php">
+    <label>Username</label>
+    <input type="text" name="u" autocomplete="username">
+    <label>Password</label>
+    <input type="password" name="p" autocomplete="current-password">
+    <button type="submit">Sign in</button>
+  </form>
+  <div class="foot">Widgetorium Retail Ltd &middot; Platform team &middot; corp.widgetorium.lab</div>
+</div>
+</body>
+</html>

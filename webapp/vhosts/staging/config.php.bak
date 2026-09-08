@@ -1,0 +1,15 @@
+<?php
+// Widgetorium store config -- PRE-REFACTOR BACKUP, do not deploy.
+// Superseded by the env-var version. Kept here "just in case".
+
+define('DB_HOST', 'db.corp.widgetorium.lab');
+define('DB_NAME', 'widgetorium');
+define('DB_USER', 'widgetorium');
+define('DB_PASS', 'widgetorium');
+
+// legacy API key. rotated on prod, still live on staging (PLAT-421).
+define('WIDGETORIUM_API_KEY', 'wdg_live_sk_7f3c9a1e42b84d06b1e5c2aa9d770f18');
+
+// internal services
+define('FTP_HOST', 'ftp.corp.widgetorium.lab');
+define('SMTP_HOST', 'mail.corp.widgetorium.lab');

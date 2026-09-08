@@ -1,0 +1,8 @@
+username,full_name,email,team,role
+f.mills,Frank Mills,f.mills@corp.widgetorium.lab,platform,lead
+a.okafor,Ada Okafor,a.okafor@corp.widgetorium.lab,backend,engineer
+r.singh,Ravi Singh,r.singh@corp.widgetorium.lab,frontend,engineer
+j.doyle,Jess Doyle,j.doyle@corp.widgetorium.lab,qa,analyst
+m.reyes,Marco Reyes,m.reyes@corp.widgetorium.lab,ops,administrator
+s.kaur,Simran Kaur,s.kaur@corp.widgetorium.lab,support,agent
+admin,Service Account,admin@widgetorium.local,platform,superuser

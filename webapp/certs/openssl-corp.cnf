@@ -1,0 +1,37 @@
+# vuln 22: the certificate served on the internal TLS vhosts. Its SAN list is
+# the whole internal hostname inventory, including names that are NOT in the
+# DNS zone (git, jenkins, vault, registry). Leaking this list is the point.
+
+[ req ]
+distinguished_name = dn
+x509_extensions    = v3_ext
+prompt             = no
+
+[ dn ]
+C  = GB
+ST = Somewhere
+L  = Nowhere
+O  = Widgetorium Retail Ltd
+OU = Platform
+CN = corp.widgetorium.lab
+
+[ v3_ext ]
+basicConstraints = CA:FALSE
+keyUsage         = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName   = @alt_names
+
+[ alt_names ]
+DNS.1  = corp.widgetorium.lab
+DNS.2  = admin.corp.widgetorium.lab
+DNS.3  = dev.corp.widgetorium.lab
+DNS.4  = staging.corp.widgetorium.lab
+DNS.5  = shop.corp.widgetorium.lab
+DNS.6  = api.corp.widgetorium.lab
+DNS.7  = legacy.corp.widgetorium.lab
+DNS.8  = vpn.corp.widgetorium.lab
+DNS.9  = git.corp.widgetorium.lab
+DNS.10 = jenkins.corp.widgetorium.lab
+DNS.11 = vault.corp.widgetorium.lab
+DNS.12 = registry.corp.widgetorium.lab
+DNS.13 = backup.corp.widgetorium.lab

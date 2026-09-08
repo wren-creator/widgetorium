@@ -1,0 +1,50 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 674 >>
+stream
+BT /F1 11 Tf 54 738 Td 14 TL
+(Widgetorium storefront -- migration plan \(INTERNAL / DRAFT\)) Tj T*
+() Tj T*
+(Owner: Frank Mills, Platform Lead \(f.mills@corp.widgetorium.lab\)) Tj T*
+(Ticket: PLAT-421   Reviewed: A. Okafor, R. Singh) Tj T*
+() Tj T*
+(1. Cut the storefront over from the single box to split web/db/ftp.) Tj T*
+(2. Retire admin.corp.widgetorium.lab local accounts once SSO is live.) Tj T*
+(3. Rotate WIDGETORIUM_API_KEY -- still literal on staging and in the) Tj T*
+(   old admin/.git checkout.) Tj T*
+(4. CI stays on jenkins.corp.widgetorium.lab \(10.10.20.14\) for now.) Tj T*
+(5. Nightly export keeps landing in the dev s3/ mirror until replaced.) Tj T*
+ET
+
+endstream
+endobj
+6 0 obj
+<< /Title (Widgetorium Storefront Migration Plan) /Author (Frank Mills <f.mills@corp.widgetorium.lab>) /Subject (PLAT-421 storefront split + secret rotation) /Keywords (internal; corp.widgetorium.lab; jenkins.corp.widgetorium.lab; PLAT-421) /Creator (Widgetorium Docs Toolkit 3.1 on wsl-fmills) /Producer (LibreOffice 7.4 / corp template v2) /CreationDate (D:20241104020311Z) /ModDate (D:20241104021900Z) >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000000317 00000 n 
+0000001042 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R /Info 6 0 R >>
+startxref
+1465
+%%EOF

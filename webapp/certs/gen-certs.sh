@@ -6,6 +6,9 @@
 #   selfsigned.crt / selfsigned.key  - vuln 5: CN does not match the hostname,
 #                                      no subjectAltName at all
 #   expired.crt   / expired.key      - vuln 6: valid window entirely in 2019
+#   corp.crt      / corp.key         - vuln 22: SAN list leaks the internal
+#                                      hostname inventory (served on the
+#                                      admin/dev/staging TLS vhosts)
 #   dhparam-1024.pem                 - vuln 7: weak DH parameters
 set -euo pipefail
 
@@ -33,8 +36,13 @@ else
         -subj "$SUBJ"
 fi
 
+echo "[gen-certs] corp certificate with a SAN list that leaks the internal inventory"
+openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
+    -keyout corp.key -out corp.crt \
+    -config openssl-corp.cnf -extensions v3_ext
+
 echo "[gen-certs] 1024-bit DH parameters"
 openssl dhparam -out dhparam-1024.pem 1024
 
 echo "[gen-certs] done:"
-ls -l selfsigned.crt selfsigned.key expired.crt expired.key dhparam-1024.pem
+ls -l selfsigned.crt selfsigned.key expired.crt expired.key corp.crt corp.key dhparam-1024.pem

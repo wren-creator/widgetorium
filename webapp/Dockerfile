@@ -35,11 +35,14 @@ RUN bash /opt/widgetorium/certs/gen-certs.sh
 # The site itself.
 COPY src/ /var/www/html/
 
+# The internal virtual hosts (bug 21 / 23): admin console, dev sandbox, staging.
+COPY vhosts/ /var/www/vhosts/
+
 # Plant the /admin/.git history at build time (secret in commit 1, "removed" in
 # commit 2). Doing this in the build avoids a nested repo in the source tree.
 RUN bash /opt/widgetorium/tools/plant-git.sh
 
-RUN chown -R www-data:www-data /var/www/html \
+RUN chown -R www-data:www-data /var/www/html /var/www/vhosts \
  && mkdir -p /var/www/html/uploads/ftp \
  && chmod -R 0777 /var/www/html/uploads
 

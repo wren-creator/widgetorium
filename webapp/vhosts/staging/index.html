@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widgetorium (staging)</title>
+<style>
+  body{font:14px/1.6 system-ui,sans-serif;background:#1b1408;color:#e8dcc4;margin:0}
+  .bar{background:#8a6d1f;color:#1b1408;font-weight:700;text-align:center;padding:6px;letter-spacing:1px}
+  .wrap{max-width:640px;margin:8vh auto;padding:0 20px}
+  code{background:#0d0a04;padding:1px 5px;border-radius:4px}
+  a{color:#e0b657}
+</style>
+</head>
+<body>
+<div class="bar">STAGING &mdash; NOT PRODUCTION &mdash; DATA MAY BE WIPED NIGHTLY</div>
+<div class="wrap">
+  <h1>Widgetorium storefront &mdash; staging</h1>
+  <p>Pre-release build of the shop. Points at the same database as
+  <code>admin.corp.widgetorium.lab</code>. Debug output is left on here on
+  purpose so QA can see stack traces.</p>
+  <ul>
+    <li><a href="/build-info.json">build-info.json</a></li>
+    <li><a href="/config.php.bak">config.php.bak</a> &mdash; pre-env-var refactor, do not ship</li>
+  </ul>
+  <p style="color:#9c8a63;font-size:12px">Owner: platform team. Questions to
+  the dev sandbox notes on <code>dev.corp.widgetorium.lab</code>.</p>
+</div>
+</body>
+</html>

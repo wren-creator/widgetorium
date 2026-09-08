@@ -1,0 +1,11 @@
+{
+  "app": "widgetorium-store",
+  "version": "2.4.1-rc3",
+  "channel": "staging",
+  "git_commit": "a31ac0a",
+  "git_branch": "release/2.4",
+  "built_at": "2024-11-05T02:11:44Z",
+  "built_by": "ci-runner@jenkins.corp.widgetorium.lab",
+  "db_host": "db.corp.widgetorium.lab",
+  "notes": "shares prod users table; rotate WIDGETORIUM_API_KEY before GA"
+}
