@@ -30,6 +30,13 @@ All notable changes to Widgetorium are recorded here. Format follows
   theme, no popup or modal, no functional change to the lab.
 
 ### Changed
+- *Widgetorium 101* is now a seven-session syllabus: a new Session 2,
+  "Reconnaissance and the Corporate Domain", covers the AXFR, vhost discovery,
+  the certificate SAN leak, and the dev-sandbox leftovers. The later sessions
+  renumber (SQL injection is Session 3, the capstone is Session 7), the capstone
+  opens with a "starting cold" recon pass, and the front matter, toolbox, and
+  counts are updated. Rebuilt `docs/Widgetorium-101-Syllabus.epub`;
+  `build-epub.sh` now also excludes nested dotfiles from the archive.
 - `webapp/apache/000-default.conf` and `default-ssl.conf` are now multi-vhost:
   the storefront stays the default (unmatched `Host`, bare IP), with the
   internal hosts layered on by name. `docker-entrypoint.sh` and `gen-certs.sh`

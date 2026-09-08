@@ -7,17 +7,18 @@
     <dc:language>en</dc:language>
     <meta refines="#title" property="title-type">main</meta>
     <meta refines="#creator" property="role" scheme="marc:relators">aut</meta>
-    <meta property="dcterms:modified">2026-09-02T00:00:00Z</meta>
+    <meta property="dcterms:modified">2026-09-08T00:00:00Z</meta>
   </metadata>
   <manifest>
     <item id="chap00" href="chapters/00-front.xhtml" media-type="application/xhtml+xml"/>
     <item id="chap01" href="chapters/01-orientation.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap02" href="chapters/02-sql-injection.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap03" href="chapters/03-tls-certificates.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap04" href="chapters/04-web-grab-bag.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap05" href="chapters/05-the-ftp-box.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap06" href="chapters/06-capstone.xhtml" media-type="application/xhtml+xml"/>
-    <item id="chap07" href="chapters/07-closing-author.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap02" href="chapters/02-recon.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap03" href="chapters/03-sql-injection.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap04" href="chapters/04-tls-certificates.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap05" href="chapters/05-web-grab-bag.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap06" href="chapters/06-the-ftp-box.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap07" href="chapters/07-capstone.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap08" href="chapters/08-closing-author.xhtml" media-type="application/xhtml+xml"/>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="css" href="styles.css" media-type="text/css"/>
     <item id="cover-img" href="assets/cover.jpg" media-type="image/jpeg" properties="cover-image"/>
@@ -31,6 +32,7 @@
     <itemref idref="chap05"/>
     <itemref idref="chap06"/>
     <itemref idref="chap07"/>
+    <itemref idref="chap08"/>
   </spine>
   <guide>
     <reference type="toc" title="Table of Contents" href="nav.xhtml"/>

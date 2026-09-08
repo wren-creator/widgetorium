@@ -35,7 +35,7 @@ curl -s  "http://127.0.0.1:8080/search.php?q=bolt"    # how does the term come b
 curl -s  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/admin/.git/config</pre>
 <p>By the end of this step you have a complete map of the attack surface that you built, not one a tool handed you. Every later session works from this map.</p>
 <h2>1.4 Read the Transport by Hand</h2>
-<p>Before testssl.sh does it for you in Session 3, look at the certificate and the handshake yourself:</p>
+<p>Before testssl.sh does it for you in Session 4, look at the certificate and the handshake yourself:</p>
 <pre>openssl s_client -connect 127.0.0.1:8443 -servername widgetorium.local &lt;/dev/null 2&gt;&amp;1 \
   | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
 curl -ksI https://127.0.0.1:8443/ | grep -i strict-transport-security   # nothing comes back</pre>
@@ -52,5 +52,6 @@ curl -ksI https://127.0.0.1:8443/ | grep -i strict-transport-security   # nothin
 <p>That second list is the rest of the course.</p>
 <h2>1.6 What You Should Notice</h2>
 <p>You mapped this application in half an hour with a browser and <code>curl</code>, and the scanner, run afterward, mostly confirmed what you already had. The findings that matter most, the ones about who owns an order, whether a stored value gets trusted later, what a session token is made of, were never going to come from a tool that only connects requests to responses. Old-school first is not a style choice. It is the only way to know where the automated tool stopped seeing.</p>
+<p>One more gap, and it is the whole of the next session: everything you just mapped, you reached through a single address on <code>127.0.0.1</code>. A real target is a domain, a nameserver, and a scatter of hosts you have to find before you can test them. Session 2 does that finding.</p>
 </body>
 </html>

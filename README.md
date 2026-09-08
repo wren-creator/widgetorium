@@ -123,16 +123,17 @@ Trainees work from `docs/scenarios-trainee.md`. Instructors hold
 
 ## Course
 
-*Widgetorium 101* is a six-session syllabus built on this lab: orientation and
-mapping by hand, SQL injection four ways, certificates and transport security, the
-web application grab bag, the FTP box, and a chaining capstone. The orientation
-session now has a real nameserver behind it, `dig` a zone transfer, read the
-certificate SANs, fuzz the `Host` header. It teaches the old-school way first,
-every finding is worked with a browser, `curl`, `openssl`, `dig`, and a packet
-capture before any scanner is pointed at it; ZAP, sqlmap, testssl.sh, gobuster,
-dnsrecon, hydra, and hashcat come in second, to confirm and to cover ground. The
-ebook is at `docs/Widgetorium-101-Syllabus.epub`; the source is under
-`docs/syllabus-epub/` and rebuilds with `docs/syllabus-epub/build-epub.sh`.
+*Widgetorium 101* is a seven-session syllabus built on this lab: orientation and
+mapping by hand, reconnaissance and the corporate domain, SQL injection four ways,
+certificates and transport security, the web application grab bag, the FTP box,
+and a chaining capstone. Session 2 works the recon surface against a real
+nameserver, `dig` a zone transfer, read the certificate SANs, fuzz the `Host`
+header, sift the dev sandbox. It teaches the old-school way first, every finding
+is worked with a browser, `curl`, `openssl`, `dig`, and a packet capture before
+any scanner is pointed at it; ZAP, sqlmap, testssl.sh, gobuster, dnsrecon, hydra,
+and hashcat come in second, to confirm and to cover ground. The ebook is at
+`docs/Widgetorium-101-Syllabus.epub`; the source is under `docs/syllabus-epub/`
+and rebuilds with `docs/syllabus-epub/build-epub.sh`.
 
 ## Security and authorised use
 

@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"/>
+<title>Session 2: Reconnaissance and the Corporate Domain</title>
+<link rel="stylesheet" type="text/css" href="../styles.css"/>
+</head>
+<body>
+<h1>Session 2: Reconnaissance and the Corporate Domain</h1>
+<p>Goal for this session: stop treating the lab as one IP on <code>127.0.0.1</code> and start treating it as an estate. Widgetorium runs its own nameserver, authoritative for a fake corporate domain, and behind that domain are hosts a port scan of a single address will never show you. Five findings here, an open zone transfer, a set of virtual hosts hiding behind the <code>Host</code> header, a certificate that hands over the guest list, a developer sandbox full of things nobody cleaned up, and an export bucket left open. None of them need an exploit. They need you to look.</p>
+<p>The lab nameserver is on <code>127.0.0.1</code> port <code>5300</code>, TCP and UDP. Port 53 belongs to your own machine's resolver and 5353 is taken by mDNS on macOS, so the lab uses 5300 and you point every tool at it explicitly. It is authoritative for two zones: <code>corp.widgetorium.lab</code>, the internal estate, and <code>widgetorium.lab</code>, the public face.</p>
+
+<h2>2.1 Passive First, and Why It Comes Up Empty</h2>
+<p>On a real engagement the first hour is passive: certificate transparency logs, <code>theHarvester</code>, <code>amass</code> in passive mode, a WHOIS lookup, Google. Run them here anyway, against <code>corp.widgetorium.lab</code>, and watch every one of them return nothing.</p>
+<pre>theHarvester -d corp.widgetorium.lab -b all
+amass enum -passive -d corp.widgetorium.lab
+curl -s 'https://crt.sh/?q=%25.corp.widgetorium.lab&amp;output=json'</pre>
+<p>That is not a broken lab. The domain does not exist on the public internet, so there are no transparency-log entries, no scraped subdomains, no cached pages. This is exactly what an internal assessment of a private domain looks like: passive recon produces a blank page, and the tester who only knows the passive playbook is stuck. The move is to pivot to active, ask the infrastructure directly, and that is the rest of this session.</p>
+
+<h2>2.2 Ask the Nameserver</h2>
+<p>Start with the ordinary queries, by hand, before any enumeration tool. Read the SOA, find the nameserver, look for the obvious record types.</p>
+<pre>dig @127.0.0.1 -p 5300 corp.widgetorium.lab SOA
+dig @127.0.0.1 -p 5300 corp.widgetorium.lab NS
+dig @127.0.0.1 -p 5300 corp.widgetorium.lab MX
+dig @127.0.0.1 -p 5300 corp.widgetorium.lab TXT
+dig @127.0.0.1 -p 5300 www.corp.widgetorium.lab A</pre>
+<p>The TXT records alone are worth reading: an SPF string that names a mail host by IP, a DMARC record with a reporting address, a note that this is the internal zone. Now try the query that should never work against a stranger:</p>
+<pre>dig axfr @127.0.0.1 -p 5300 corp.widgetorium.lab</pre>
+<p>The whole zone comes back in one response. Every <code>A</code> record, the <code>CNAME</code>s, the mail exchanger, every TXT string, and a set of hosts on <code>10.10.0.0/16</code> you had no other way to know about. This is <strong>finding 20</strong>: the zone allows a transfer from any client. <code>allow-transfer</code> was never restricted.</p>
+<p>Do the same against the other zone and watch it behave correctly:</p>
+<pre>dig axfr @127.0.0.1 -p 5300 widgetorium.lab      # ; Transfer failed.</pre>
+<p><code>widgetorium.lab</code> refuses the transfer, the way every zone should. Put the two side by side in your notes. The fix for finding 20 is one line: restrict transfers to known secondary servers, or turn them off, and keep an internet-reachable nameserver from ever holding the internal zone in the first place.</p>
+<p>The enumeration tools do the same thing with parsing on top:</p>
+<pre>dnsrecon -n 127.0.0.1 -p 5300 -d corp.widgetorium.lab -t axfr</pre>
+
+<h2>2.3 Which Names Are Real</h2>
+<p>The transfer handed you a list. Not all of it matters. Sort the records into three piles:</p>
+<ul>
+<li><strong>Points at <code>127.0.0.1</code>.</strong> Live in the lab: <code>www</code>, <code>shop</code>, <code>admin</code>, <code>api</code>, <code>dev</code>, <code>staging</code>, <code>legacy</code>, <code>ftp</code>. These are your targets.</li>
+<li><strong>Points into <code>10.10.0.0/16</code>.</strong> <code>vpn</code>, <code>jenkins</code>, <code>ci</code>, <code>backup</code>, <code>mail</code>, <code>intranet-old</code>. They resolve, but nothing in the lab answers on them, and <code>security.txt</code> (2.6) puts that range out of scope. Stale DNS is normal on real estates. Recording it is part of the job; scanning it here is not.</li>
+<li><strong>The wildcard.</strong> <code>*.corp.widgetorium.lab</code> resolves to <code>127.0.0.1</code> as well, which means every name you can think of resolves. Subdomain brute forcing by DNS resolution is useless here. You will have to enumerate a different way, which is the next step.</li>
+</ul>
+
+<h2>2.4 Virtual Host Discovery</h2>
+<p>The webapp on <code>127.0.0.1:8080</code> answers to more than the storefront. <code>admin.corp.widgetorium.lab</code>, <code>dev.corp.widgetorium.lab</code> and <code>staging.corp.widgetorium.lab</code> are separate name-based virtual hosts with their own document roots. A request with no <code>Host</code> header, a bare IP, or an unrecognised <code>Host</code> falls through to the shop, so nothing you did in Session 1 revealed them, and a port scan never will. This is <strong>finding 21</strong>.</p>
+<p>By hand, send the <code>Host</code> header yourself and compare:</p>
+<pre>for h in www admin dev staging nope; do
+  printf '%-9s ' "$h"
+  curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
+    -H "Host: $h.corp.widgetorium.lab" http://127.0.0.1:8080/
+done</pre>
+<p><code>www</code> and <code>nope</code> return the storefront, the same byte count. <code>admin</code>, <code>dev</code> and <code>staging</code> return something smaller and different. That difference is the whole detection. Now let a tool sweep a wordlist the same way:</p>
+<pre>gobuster vhost -u http://127.0.0.1:8080 --append-domain \
+  --domain corp.widgetorium.lab -w &lt;subdomains.txt&gt;</pre>
+<p>The AXFR from 2.2 and the certificate from 2.5 both give you candidate names without guessing at all. To browse the hosts, add them to <code>/etc/hosts</code> pointing at <code>127.0.0.1</code>, or keep using <code>curl -H "Host: ..."</code> and <code>--resolve</code>. The fix is a default virtual host that serves nothing useful, and keeping internal applications on their own listener or network rather than multiplexed onto the public one by header alone.</p>
+
+<h2>2.5 What the Certificate Gives Away</h2>
+<p>Even if the zone transfer were locked, the TLS layer would still talk. The internal HTTPS vhosts present their own certificate, selected by the SNI name you send in the handshake. Ask for one by name and read what comes back:</p>
+<pre>echo | openssl s_client -connect 127.0.0.1:8443 \
+  -servername admin.corp.widgetorium.lab 2&gt;/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName</pre>
+<p>The <code>subjectAltName</code> lists thirteen hostnames. Cross-check them against the zone you pulled in 2.2: four of them, <code>git</code>, <code>jenkins</code>, <code>vault</code> and <code>registry</code> under <code>corp.widgetorium.lab</code>, are not in DNS at all. The certificate is leaking the intended host inventory, names someone planned for and put in the SAN, whether or not they exist yet. This is <strong>finding 22</strong>. Send a name that matches nothing instead and you get the storefront's certificate, the Session 4 one, with no SAN:</p>
+<pre>echo | openssl s_client -connect 127.0.0.1:8443 \
+  -servername widgetorium.local 2&gt;/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName      # No extensions</pre>
+<p>testssl.sh will record the SAN list in its output too; reading it as a target list is your job, not the tool's. The fix is to stop enumerating internal hosts in a shared certificate: per-host certs, or a wildcard that names nothing specific, and keep internal-only names on an internal CA.</p>
+
+<h2>2.6 Read What People Left Behind</h2>
+<p>The <code>dev</code> vhost has directory listing on and is full of the things that accumulate on a box nobody owns. This is <strong>finding 23</strong>. Walk it:</p>
+<pre>B='-H Host:dev.corp.widgetorium.lab'
+curl -s $B http://127.0.0.1:8080/robots.txt              # points at /s3/ and /notes/
+curl -s $B http://127.0.0.1:8080/.well-known/security.txt # in-scope hosts, out-of-scope range
+curl -s $B http://127.0.0.1:8080/phpinfo.php | grep -i 'PHP Version'
+curl -s $B http://127.0.0.1:8080/notes/dev-notes.txt</pre>
+<p>The notes are the prize: staff names and the <code>first.last</code> username scheme, the <code>svc-ldap-ro</code> service account, the CI host's real address, a line saying <code>ftpuser/ftpuser</code> still works, and a reminder that the API key is still literal on staging. The <code>admin</code> vhost carries a listable <code>/backup/</code> with a <code>users-*.sql.bak</code> that holds the real <code>users</code> table and its unsalted MD5 hashes, so you have the password hashes before you have touched the SQL injection in Session 3. Staging serves <code>config.php.bak</code>, the pre-refactor config with the database password and the API key in plain PHP, and a <code>build-info.json</code> with a version and a git commit.</p>
+<p>Then there is the export bucket, <strong>finding 24</strong>:</p>
+<pre>curl -s $B http://127.0.0.1:8080/s3/ | xmllint --format -
+curl -s $B -O http://127.0.0.1:8080/s3/widgetorium-migration-plan.pdf
+exiftool widgetorium-migration-plan.pdf
+curl -s $B http://127.0.0.1:8080/s3/backups/db-widgetorium-2024-11-04.sql.gz | gunzip -c</pre>
+<p><code>/s3/</code> returns an S3-style <code>ListBucketResult</code> naming its objects. The migration-plan PDF reads normally, but <code>exiftool</code> pulls its metadata: an author name and email, a <code>Creator</code> string that names the author's workstation, and keywords listing an internal host and a ticket number. The staff CSV gives you a full name list for a credential attack. The gzipped dump under <code>backups/</code> has <code>users</code> rows and the API key in a comment. The fix across all of this is dull and total: directory listing off, no <code>phpinfo</code> or <code>.bak</code> files or notes in a document root, no unauthenticated buckets, and strip document metadata before anything is published (<code>exiftool -all=</code>).</p>
+
+<h2>2.7 What You Should Notice</h2>
+<p>You did not exploit anything this session. You asked a nameserver a question it should not have answered, you sent a header, you read a certificate, and you opened files that were sitting in the open. And you came away with an admin hostname, an API endpoint, a staging box that shares production secrets, two sets of password hashes, a username scheme, and a live API key. Every later session is easier because of it.</p>
+<p>Notice too what the scanners did here. ZAP, pointed at the <code>dev</code> vhost, would flag the directory listing and the <code>phpinfo</code> page. It would say nothing about the zone transfer, the hidden vhosts, or the certificate's guest list, because those are <code>dig</code>, <code>gobuster</code> and <code>openssl</code>, not a web crawler. Recon is where the manual-first habit pays off first: the tools that matter here are the ones you drive yourself.</p>
+</body>
+</html>
