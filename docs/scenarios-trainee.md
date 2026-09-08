@@ -19,13 +19,20 @@ and Wireshark as the per-bug spot-checks; everything else is done by hand.
 
 - Storefront: `http://127.0.0.1:8080/`, TLS on `https://127.0.0.1:8443/`.
 - FTP: `127.0.0.1:21`, anonymous, plus `ftpuser:ftpuser`.
+- DNS: `127.0.0.1:5300` (TCP and UDP), authoritative for `corp.widgetorium.lab`
+  and `widgetorium.lab`. Query it directly: `dig @127.0.0.1 -p 5300 ...`. Add
+  the vhost names to `/etc/hosts` (pointing at `127.0.0.1`) to browse them, or
+  use `curl --resolve` / `-H Host:`.
 - Seed admin: `admin` / `Widgetorium2024!` (unsalted MD5 in `users.password_hash`,
   crackable). Seed customers: `alice`, `bob`, ... with rockyou-class passwords.
 - `LOAD_FILE()` reads the **database container's** filesystem, not the web
   server's. The planted target is `/var/lib/mysql-files/secret.txt`.
+- Passive OSINT (`theHarvester`, `amass` passive, crt.sh) finds nothing: the
+  domain is not on the internet. Recon here is active, AXFR, cert inspection,
+  vhost fuzzing, reading what people left lying around.
 - Several bugs are stateful. Run `./reset.sh` between cohorts.
 - Instructor toggles (in `.env`): `WEAK_TLS`, `SEND_HSTS`, `VERBOSE_ERRORS`,
-  `SECOND_ORDER_SINK`, `WEAK_SESSIONS`, `PLANT_GIT`, `EXPIRED_CERT`.
+  `SECOND_ORDER_SINK`, `WEAK_SESSIONS`, `PLANT_GIT`, `EXPIRED_CERT`, `OPEN_AXFR`.
 
 ---
 
@@ -260,13 +267,111 @@ restriction on the web side (12). PHP executes in that directory.
 
 ---
 
+## Reconnaissance
+
+Work this category first. Passive OSINT is a dead end here on purpose:
+`theHarvester`, `amass` passive mode and crt.sh all need a real internet
+domain, and `corp.widgetorium.lab` is not one. That is realistic for an
+internal engagement. Pivot to active: ask the nameserver, read the TLS
+handshake, fuzz the `Host` header.
+
+### 20. Open DNS zone transfer (AXFR)
+**Where:** the lab nameserver, `127.0.0.1:5300`, zone `corp.widgetorium.lab`.
+**Vulnerability:** the internal zone allows transfers from anyone, so one query
+dumps every record: A, CNAME, the `10.10.x.x` stale hosts, SPF/DMARC/TXT, the
+MX. The sibling zone `widgetorium.lab` refuses transfers; compare them.
+**ZAP finds it:** no. `dig` / `dnsrecon` territory.
+**Confirm / exploit with:** `dig`.
+`dig axfr @127.0.0.1 -p 5300 corp.widgetorium.lab` dumps the zone.
+`dig axfr @127.0.0.1 -p 5300 widgetorium.lab` returns `Transfer failed`.
+`dnsrecon -n 127.0.0.1 -p 5300 -d corp.widgetorium.lab -t axfr` parses it.
+Which names point at `127.0.0.1` (live), which point into `10.10.0.0/16`
+(resolve, nothing answers, out of scope per `security.txt`)?
+
+### 21. Virtual-host discovery
+**Where:** the webapp on `127.0.0.1:8080` / `:8443` answers to several
+hostnames, not just the storefront.
+**Vulnerability:** `admin.corp.widgetorium.lab`, `dev.corp.widgetorium.lab` and
+`staging.corp.widgetorium.lab` are separate name-based vhosts with their own
+document roots. A request with no `Host`, a bare IP, or an unknown `Host` falls
+through to the storefront, so a port scan or directory brute force never sees
+them. The zone's wildcard (`*.corp.widgetorium.lab -> 127.0.0.1`) means name
+resolution is no help either. Fuzz the `Host` header and diff the responses.
+**ZAP finds it:** no, not without being pointed at each hostname explicitly.
+**Confirm / exploit with:** `gobuster` / `ffuf` in vhost mode.
+`gobuster vhost -u http://127.0.0.1:8080 --append-domain \
+  --domain corp.widgetorium.lab -w <subdomains.txt>` flags `admin`, `dev`,
+`staging` on response-length difference. Confirm:
+`curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/`.
+The AXFR (20) and the SAN list (22) hand you the candidate names.
+
+### 22. TLS certificate leaks the internal host inventory
+**Where:** the internal HTTPS vhosts, via SNI, e.g.
+`openssl s_client -connect 127.0.0.1:8443 -servername admin.corp.widgetorium.lab`.
+**Vulnerability:** those vhosts present one certificate whose `subjectAltName`
+lists thirteen names, including `git`, `jenkins`, `vault` and `registry` that
+are **not** in the DNS zone. Even with the AXFR locked, the handshake gives up
+the list. The default storefront vhost still presents the bug-5 certificate
+(CN mismatch, no SAN); which one you get depends on the SNI name you send.
+**ZAP finds it:** passive scan records the certificate and its SANs; reading
+them as a target list is your job.
+**Confirm / exploit with:** `openssl` or `testssl.sh`.
+`echo | openssl s_client -connect 127.0.0.1:8443 -servername admin.corp.widgetorium.lab 2>/dev/null \
+  | openssl x509 -noout -ext subjectAltName`
+Cross-check against the AXFR: the names not in the zone are the interesting ones.
+
+### 23. Developer sandbox information disclosure
+**Where:** `dev.corp.widgetorium.lab`, plus a backup on
+`admin.corp.widgetorium.lab`.
+**Vulnerability:** the dev vhost has directory listing on and leaves plenty in
+the open: `phpinfo.php`, `notes/dev-notes.txt` (staff names, usernames, the
+`svc-ldap-ro` account, the CI host, a note that `ftpuser/ftpuser` still works
+and the API key is still literal on staging), `.well-known/security.txt` (the
+in-scope host list and the out-of-scope range), `robots.txt` (points at `/s3/`
+and `/notes/`). `admin.corp.widgetorium.lab` serves a listable `/backup/` with
+a `users-*.sql.bak` holding the real `users` table and its unsalted MD5 hashes,
+so you get the credential hashes without the SQL injection in bug 1. Staging
+serves `config.php.bak` (DB creds and API key in PHP source) and
+`build-info.json`.
+**ZAP finds it:** a spider with directory-listing detection flags the open
+directories and `phpinfo`; the value in the notes is manual reading.
+**Confirm / exploit with:** browser plus `curl` / `gobuster dir`.
+`curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/notes/dev-notes.txt`
+`curl -s -H 'Host: admin.corp.widgetorium.lab' http://127.0.0.1:8080/backup/users-2024-11-01.sql.bak`
+Feed the hashes to `hashcat -m 0` / `john`; they crack to the seed passwords.
+
+### 24. Exposed export bucket and document metadata
+**Where:** `http://dev.corp.widgetorium.lab/s3/`.
+**Vulnerability:** a directory dressed up as an open object store. `/s3/`
+returns an S3-style `ListBucketResult` XML. A migration-plan PDF and
+`employee-directory.csv` are readable; a gzipped DB dump under `backups/` holds
+`users` rows and the API key in a comment. The PDF's metadata is the lesson:
+`exiftool` pulls the author name and email, a `Creator` string naming the
+workstation, and `Keywords` listing an internal host and a ticket reference.
+**ZAP finds it:** it will flag the directory listing / XML; the metadata and the
+document contents are read by hand.
+**Confirm / exploit with:** `curl` plus `exiftool`.
+`curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/s3/ | xmllint --format -`
+`curl -sO ... /s3/widgetorium-migration-plan.pdf && exiftool widgetorium-migration-plan.pdf`
+`curl -s ... /s3/backups/db-widgetorium-2024-11-04.sql.gz | gunzip -c`
+The CSV gives you a username list for `hydra` against the store login or FTP.
+
+---
+
 ## Notes for running the lab
 
 - Run each scenario in isolation the first time through, then chain them
-  (15 + 12 into 19, 14 into 1 and 3, 13 into 11) once trainees have the pieces.
+  (20 into everything, 15 + 12 into 19, 14 into 1 and 3, 13 into 11) once you
+  have the pieces. Recon (20-24) is meant to run first: the AXFR and the SAN
+  list give up `admin`, `api` and `staging`; the dev notes and the `.sql.bak`
+  give up credential hashes before bug 1 is touched; the CSV gives up a
+  username list for bugs 2 and 16.
 - Reset the containers between sessions with `./reset.sh`. Bugs 3, 10, 11, 12
-  and 19 are stateful and will carry over otherwise.
+  and 19 are stateful and will carry over otherwise. The recon surface (20-24)
+  is static.
 - The instructor edition adds the intended fix for each bug.
-- Expected ZAP coverage: it should surface 1, 2, 4, 8, 10 (weakly), 11, 12, 14.
-  It should not surface 3, 5, 6, 7 (those are testssl.sh), 9 (gobuster), 13,
-  15-19 (nmap / manual / Wireshark). That asymmetry is the lesson.
+- Expected ZAP coverage: it should surface 1, 2, 4, 8, 10 (weakly), 11, 12, 14,
+  and the directory listings / `phpinfo` behind 23 and 24 if pointed at the dev
+  vhost. It should not surface 3, 5, 6, 7 (those are testssl.sh), 9 (gobuster),
+  13, 15-19 (nmap / manual / Wireshark), or 20-22 (dig / openssl / gobuster
+  vhost). That asymmetry is the lesson.

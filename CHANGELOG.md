@@ -6,12 +6,37 @@ All notable changes to Widgetorium are recorded here. Format follows
 ## [Unreleased]
 
 ### Added
+- A fourth container, `dns` (BIND9), bound to `127.0.0.1:5300` TCP and UDP,
+  authoritative for `corp.widgetorium.lab` (the internal target) and
+  `widgetorium.lab` (its public face). Gives the lab a real reconnaissance
+  phase: zone transfers, subdomain and vhost discovery, certificate
+  inspection, worked against an actual nameserver. No public DNS, no real
+  domain required. New `OPEN_AXFR` toggle.
+- A **Reconnaissance** scenario category (bugs 20-24) in `docs/scenarios.md`
+  and the trainee copy: open DNS zone transfer, virtual-host discovery of the
+  internal apps, a TLS certificate whose SAN list leaks the internal hostname
+  inventory, a developer sandbox full of `phpinfo` / notes / `.sql.bak`
+  leftovers, and an S3-style export bucket with document metadata.
+- Internal virtual hosts on the existing webapp container
+  (`webapp/vhosts/{admin,dev,staging}`): an admin console, a developer
+  sandbox, and a staging copy of the shop, reachable only by `Host` header /
+  SNI. The default vhost is unchanged, so every existing scenario still works.
+- A third TLS certificate (`corp.crt`, from `webapp/certs/openssl-corp.cnf`)
+  served on the internal vhosts, with a SAN list that enumerates internal
+  hostnames including several not present in DNS.
 - A short, opt-in support-the-lab note beneath the login form
   (`webapp/src/login.php`), pointing at the developer fund
   (Cash App `$britleywren`). Plain styled aside in the Factory Tour
   theme, no popup or modal, no functional change to the lab.
 
 ### Changed
+- `webapp/apache/000-default.conf` and `default-ssl.conf` are now multi-vhost:
+  the storefront stays the default (unmatched `Host`, bare IP), with the
+  internal hosts layered on by name. `docker-entrypoint.sh` and `gen-certs.sh`
+  place the new `corp` certificate. `setup.sh` / `start.sh` / `status.sh` learn
+  about port 5300, including the loopback bind audit. `docs/architecture.md`,
+  `docs/verification.md` and the README track the four-container layout and the
+  24-bug count.
 - Storefront reskinned as "The Factory Tour": a whimsical widget emporium
   crossed with a mail-order novelty catalogue (Willy Wonka meets ACME Corp).
   Marquee header with a candy-stripe awning, a rotating "golden ticket"

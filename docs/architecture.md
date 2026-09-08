@@ -8,14 +8,19 @@
       │                                                      │
   8080│ http        ┌───────────────┐                        │
   8443│ https ─────▶│    webapp     │  php:8.2-apache-bullseye│
-      │             │  Apache + PHP │                        │
-      │             └──────┬────────┘                        │
+      │             │  Apache + PHP │  default vhost = store; │
+      │             │               │  admin/dev/staging by   │
+      │             └──────┬────────┘  Host header / SNI      │
       │                    │ widgetorium-net (bridge)        │
       │                    │  (internal, no host route)      │
       │             ┌──────▼────────┐                        │
       │             │      db       │  mysql:8.0             │
       │             │  not published│                        │
       │             └───────────────┘                        │
+      │                                                      │
+  5300│ dns   ─────▶┌───────────────┐  ubuntu/bind9 9.18     │
+  tcp+udp           │      dns      │  corp.widgetorium.lab  │
+      │             └───────────────┘  + widgetorium.lab     │
       │                                                      │
   21  │ ftp   ─────▶┌───────────────┐  debian:12 + vsftpd    │
  21100│ pasv        │      ftp      │                        │
@@ -34,6 +39,12 @@
   `internal: true`, adding it is a reasonable extra hardening step, test it.
 - **`db` publishes nothing.** sqlmap and `LOAD_FILE` exercises go through the
   webapp HTTP surface. There is no direct DB socket on the host.
+- **`dns` publishes `127.0.0.1:5300`, TCP and UDP.** Port 53 is the host
+  resolver's and 5353 is mDNS on macOS, so the lab uses 5300 and the tooling
+  (`dig -p 5300`, `dnsrecon -p 5300`, `status.sh`) points at it. The container
+  runs as root only so `named` can bind the pid file and rndc key, then drops
+  to the `bind` user; the entrypoint copies the read-only config mounts to a
+  writable path and applies `OPEN_AXFR` before starting.
 - **Shared dropzone** is a named volume, not a bind mount, so `./reset.sh`
   (`down -v`) actually clears planted webshells and nothing lands in git.
 
@@ -60,6 +71,7 @@ to the "vulnerable" value if `.env` is absent.
 | `SECOND_ORDER_SINK` | 3 | report concatenates stored names | `PDO::quote` variant |
 | `WEAK_SESSIONS` | 13 | `hex(time)+hex(id)` token | `random_bytes` token |
 | `PLANT_GIT` | 9 | `/admin/.git` served | directory removed at boot |
+| `OPEN_AXFR` | 20 | `corp.widgetorium.lab` transfer open to anyone | transfer refused |
 
 ## Known quirks
 
@@ -78,6 +90,59 @@ to the "vulnerable" value if `.env` is absent.
   scanner might. The healthcheck deliberately checks the process
   (`pgrep vsftpd`) rather than opening a socket, because the zero-byte
   half-open probe that `nc -z` makes is itself a reliable trigger.
+
+## The reconnaissance surface
+
+Everything the recon category (bugs 20-24) touches is static, no state, no
+reset needed.
+
+### DNS (`dns/`)
+
+Two zones on one authoritative BIND9 instance, no recursion:
+
+- **`corp.widgetorium.lab`** is the internal target. `allow-transfer { any; }`
+  (bug 20) means one `dig axfr` dumps it. It holds the live vhost names
+  (`www`, `shop`, `admin`, `api`, `dev`, `staging`, `legacy`, `ftp`, all
+  `A 127.0.0.1`), a wildcard so every guessed name still resolves (which is why
+  subdomain brute forcing by resolution is useless and vhost fuzzing is not),
+  stale records into `10.10.0.0/16` that resolve but never answer, and
+  SPF/DMARC/TXT/MX strings.
+- **`widgetorium.lab`** is the public face. `allow-transfer { none; }`, a
+  short record set, and an `NS` delegation for `corp` that is the breadcrumb
+  from the outside zone to the inside one.
+
+`OPEN_AXFR=0` rewrites the `corp` transfer rule to `{ none; }` at container
+start (the entrypoint seds the line tagged `BUG20_AXFR`).
+
+### Virtual hosts (`webapp/vhosts/`)
+
+`webapp/apache/000-default.conf` lists the storefront vhost **first**, so a
+request with no `Host`, a bare IP, or an unknown `Host` lands on the shop and
+every pre-existing scenario is unaffected. `admin`, `dev` and `staging`
+`.corp.widgetorium.lab` follow as exact-name vhosts with their own document
+roots under `/var/www/vhosts/`; an exact `Host` match wins over the default even
+though it is listed later. The `:443` side (`default-ssl.conf`) mirrors this by
+SNI, with the weak-TLS directives hoisted into server context so all four
+vhosts inherit them.
+
+### Certificates (`webapp/certs/`)
+
+`gen-certs.sh` now emits a third pair, `corp.crt` / `corp.key`, from
+`openssl-corp.cnf`. Its `subjectAltName` lists thirteen names, four of them
+(`git`, `jenkins`, `vault`, `registry`) not in the DNS zone at all. The default
+`:443` vhost still serves the bug-5 cert (CN `widget-store-prod-01`, no SAN), so
+which certificate a client gets is decided by the SNI name it sends. That is
+bug 22: the TLS handshake leaks the host inventory even with the AXFR closed.
+
+### Leftovers (`webapp/vhosts/dev`, `webapp/vhosts/admin`, `webapp/vhosts/staging`)
+
+Bugs 23 and 24 are just files in a document root with directory listing on:
+`phpinfo.php`, `notes/dev-notes.txt`, `.well-known/security.txt`, a `robots.txt`
+full of hints, an `admin` `/backup/users-*.sql.bak` with the real MD5 hashes, a
+staging `config.php.bak` and `build-info.json`, and an `s3/` directory serving a
+fake `ListBucketResult` plus a metadata-laden PDF, a staff CSV, and a small
+gzipped SQL sample. The PDF is generated once by `webapp/tools/make-recon-pdf.py`
+and committed; rerun that script to change its contents or metadata.
 
 ## The three bugs worth explaining in detail
 
