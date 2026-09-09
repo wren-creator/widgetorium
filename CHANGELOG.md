@@ -30,6 +30,17 @@ All notable changes to Widgetorium are recorded here. Format follows
   theme, no popup or modal, no functional change to the lab.
 
 ### Changed
+- Syllabus and scenario docs now spell out the tooling every step actually
+  needs, after a first run through the course surfaced the gaps: gobuster and
+  hydra ship no wordlists (added SecLists paths and `curl -sL` one-liners for
+  `common.txt`, `subdomains-top1million-5000.txt`, and `rockyou.txt`); the
+  Session 3.1 UNION uses `curl -G --data-urlencode` so literal spaces in the
+  payload do not draw a `400`; Session 3.3 notes the 32-character `updatexml`
+  truncation and how to window past the `~admin:` prefix for the full hash;
+  Session 3.4 shows the `alice` login that mints `alice.jar`; `dnsrecon` is
+  flagged as optional and `-p`-flaky with `dig` as the source of truth; and the
+  hydra example throttles with `-t 4` to stay under the vsftpd segfault
+  threshold. Rebuilt `docs/Widgetorium-101-Syllabus.epub`.
 - *Widgetorium 101* is now a seven-session syllabus: a new Session 2,
   "Reconnaissance and the Corporate Domain", covers the AXFR, vhost discovery,
   the certificate SAN leak, and the dev-sandbox leftovers. The later sessions

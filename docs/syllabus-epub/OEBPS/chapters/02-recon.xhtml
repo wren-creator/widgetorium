@@ -33,6 +33,7 @@ dig @127.0.0.1 -p 5300 www.corp.widgetorium.lab A</pre>
 <p><code>widgetorium.lab</code> refuses the transfer, the way every zone should. Put the two side by side in your notes. The fix for finding 20 is one line: restrict transfers to known secondary servers, or turn them off, and keep an internet-reachable nameserver from ever holding the internal zone in the first place.</p>
 <p>The enumeration tools do the same thing with parsing on top:</p>
 <pre>dnsrecon -n 127.0.0.1 -p 5300 -d corp.widgetorium.lab -t axfr</pre>
+<p><code>dnsrecon</code> is optional and finicky here: some builds ignore <code>-p</code> and only ever query port 53, and recent releases fail to import under Python 3.14. <code>dig</code> is the source of truth for finding 20. If <code>dnsrecon</code> returns nothing while the <code>dig axfr</code> above works, that is the tool, not the lab.</p>
 
 <h2>2.3 Which Names Are Real</h2>
 <p>The transfer handed you a list. Not all of it matters. Sort the records into three piles:</p>
@@ -50,9 +51,11 @@ dig @127.0.0.1 -p 5300 www.corp.widgetorium.lab A</pre>
   curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
     -H "Host: $h.corp.widgetorium.lab" http://127.0.0.1:8080/
 done</pre>
-<p><code>www</code> and <code>nope</code> return the storefront, the same byte count. <code>admin</code>, <code>dev</code> and <code>staging</code> return something smaller and different. That difference is the whole detection. Now let a tool sweep a wordlist the same way:</p>
-<pre>gobuster vhost -u http://127.0.0.1:8080 --append-domain \
-  --domain corp.widgetorium.lab -w &lt;subdomains.txt&gt;</pre>
+<p><code>www</code> and <code>nope</code> return the storefront, the same byte count. <code>admin</code>, <code>dev</code> and <code>staging</code> return something smaller and different. That difference is the whole detection. Now let a tool sweep a wordlist the same way. gobuster ships no wordlist; use SecLists' <code>Discovery/DNS/subdomains-top1million-5000.txt</code>, or pull it the way Session 5.1 pulls <code>common.txt</code>:</p>
+<pre>curl -sL -o subdomains.txt \
+  https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt
+gobuster vhost -u http://127.0.0.1:8080 --append-domain \
+  --domain corp.widgetorium.lab -w subdomains.txt</pre>
 <p>The AXFR from 2.2 and the certificate from 2.5 both give you candidate names without guessing at all. To browse the hosts, add them to <code>/etc/hosts</code> pointing at <code>127.0.0.1</code>, or keep using <code>curl -H "Host: ..."</code> and <code>--resolve</code>. The fix is a default virtual host that serves nothing useful, and keeping internal applications on their own listener or network rather than multiplexed onto the public one by header alone.</p>
 
 <h2>2.5 What the Certificate Gives Away</h2>

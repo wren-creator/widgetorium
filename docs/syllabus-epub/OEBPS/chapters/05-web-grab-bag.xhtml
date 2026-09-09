@@ -11,7 +11,10 @@
 <p>Goal for this session: six findings that do not share a category but do share a theme, the application trusts something it should not. It trusts a URL parameter to name whose data you get. It trusts a filename. It trusts a stored string to be safe HTML. It trusts a token it made out of the clock. Two of these ZAP flags for you; four it does not.</p>
 <h2>5.1 Exposed <code>.git</code> Directory</h2>
 <p>A real git repository sits inside the web root at <code>/admin/.git/</code>. gobuster or ffuf against <code>/admin/</code> finds it; ZAP's spider often will not, because it depends on wordlist coverage.</p>
-<pre>gobuster dir -u http://127.0.0.1:8080/admin/ -w &lt;wordlist&gt;
+<p>gobuster ships no wordlist of its own. Install SecLists (<code>brew install seclists</code>, or <code>apt install seclists</code>) and point at <code>Discovery/Web-Content/common.txt</code>, or pull just that one file:</p>
+<pre>curl -sL -o common.txt \
+  https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt
+gobuster dir -u http://127.0.0.1:8080/admin/ -w common.txt
 git-dumper http://127.0.0.1:8080/admin/.git/ ./loot
 cd loot &amp;&amp; git log -p | grep -i api_key</pre>
 <p>The working copy of <code>config.php</code> is clean, it reads the key from an environment variable. But the first commit put the key in cleartext, and the second commit only "moved it to the environment." The key is still in history:</p>

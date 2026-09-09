@@ -19,9 +19,9 @@ curl -s --ftp-pasv -T note.txt ftp://127.0.0.1/upload/note.txt
 curl -s --ftp-pasv ftp://127.0.0.1/upload/note.txt        # reads back</pre>
 <p>The fix is to disable anonymous login, or, if a business case truly requires it, make it read-only and keep it out of any directory another service serves.</p>
 <h2>6.3 Weak Service Credentials</h2>
-<p>The service account is <code>ftpuser:ftpuser</code>. Confirm it by hand, then, if you are teaching credential attacks, let hydra find it:</p>
+<p>The service account is <code>ftpuser:ftpuser</code>. Confirm it by hand, then, if you are teaching credential attacks, let hydra find it. <code>rockyou.txt</code> ships with neither hydra nor macOS: install SecLists, or pull it with <code>curl -sL -o rockyou.txt https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt</code>. Throttle hydra with <code>-t 4</code>, sixteen parallel anonymous connections is exactly the burst that trips the vsftpd segfault noted in 6.7, and hydra reports it as "all children were disabled due too many connection errors".</p>
 <pre>curl -s --ftp-pasv -u ftpuser:ftpuser ftp://127.0.0.1/
-hydra -l ftpuser -P rockyou.txt ftp://127.0.0.1</pre>
+hydra -l ftpuser -P rockyou.txt -t 4 -f ftp://127.0.0.1</pre>
 <p>The fix is that no default credential ships, and service accounts get a real password policy or key-based access.</p>
 <h2>6.4 No Chroot Jail</h2>
 <p><code>chroot_local_user</code> is off, so <code>ftpuser</code> is not confined to a home directory. After login, the whole container filesystem is reachable.</p>

