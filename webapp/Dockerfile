@@ -6,6 +6,12 @@
 # silently not reproduce. Do not "upgrade" this tag without checking that.
 FROM php:8.2-apache-bullseye
 
+# Bullseye is past end of life and its packages have moved off the live mirrors
+# (deb.debian.org now 404s on security updates), so point apt at the archive.
+# The archive's Release files are expired, hence Check-Valid-Until=false.
+RUN sed -i -E 's#https?://(deb|security)\.debian\.org/debian-security#http://archive.debian.org/debian-security#g; s#https?://deb\.debian\.org/debian#http://archive.debian.org/debian#g' /etc/apt/sources.list \
+ && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+
 # curl for the healthcheck; git for the planted .git history; faketime to
 # backdate the expired certificate; openssl for cert generation.
 RUN apt-get update \
